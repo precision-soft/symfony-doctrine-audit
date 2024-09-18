@@ -58,7 +58,7 @@ final class Storage implements StorageInterface
             ],
         );
 
-        return (int) $connection->lastInsertId();
+        return (int)$connection->lastInsertId();
     }
 
     private function saveEntity(int $transactionId, EntityDto $entityDto): void

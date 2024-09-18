@@ -12,14 +12,14 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata as MappingClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\Persistence\Mapping\ClassMetadata;
+use Mockery;
+use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\TwoEntity;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
-use Mockery;
-use Mockery\MockInterface;
 use ReflectionClass;
 
 /**
