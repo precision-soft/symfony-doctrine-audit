@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Dto;
 
 abstract class AbstractEntityDto
 {
+    /** @todo use enum for the operations */
     public const OPERATION_DELETE = 'delete';
     public const OPERATION_INSERT = 'insert';
     public const OPERATION_UPDATE = 'update';

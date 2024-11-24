@@ -76,7 +76,7 @@ final class DoctrineSchemaListener
                 );
                 $table->addColumn(
                     $this->storageConfiguration->getOperationColumnName(),
-                    AuditOperationType::getTypeName(),
+                    AuditOperationType::getDefaultName(),
                     ['notnull' => true],
                 );
 

@@ -18,8 +18,8 @@ class PrecisionSoftDoctrineAuditBundle extends Bundle
     {
         parent::boot();
 
-        if (false === Type::hasType(AuditOperationType::getTypeName())) {
-            Type::addType(AuditOperationType::getTypeName(), AuditOperationType::class);
+        if (false === Type::hasType(AuditOperationType::getDefaultName())) {
+            Type::addType(AuditOperationType::getDefaultName(), AuditOperationType::class);
         }
     }
 }

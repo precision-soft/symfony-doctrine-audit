@@ -40,7 +40,7 @@ final class CreateCommand extends AbstractCommand
 
             $this->writeln('----------------------------------------------------------------------');
 
-            $force = true === $input->getOption(static::FORCE);
+            $force = true === $input->getOption(self::FORCE);
             if ($force) {
                 $this->writeln('creating database schema');
 
@@ -51,9 +51,9 @@ final class CreateCommand extends AbstractCommand
         } catch (Throwable $t) {
             $this->error($t->getMessage(), $t, true);
 
-            return static::FAILURE;
+            return self::FAILURE;
         }
 
-        return static::SUCCESS;
+        return self::SUCCESS;
     }
 }
