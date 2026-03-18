@@ -17,6 +17,7 @@ final class AuditorDto
         private readonly array $entitiesToDelete,
         private readonly array $entitiesToInsert,
         private readonly array $entitiesToUpdate,
+        private readonly array $entityChangeSets = [],
     ) {
         $this->auditEntities = [];
     }
@@ -47,5 +48,10 @@ final class AuditorDto
         $this->auditEntities[] = $entityDto;
 
         return $this;
+    }
+
+    public function getEntityChangeSet(object $entity): ?array
+    {
+        return $this->entityChangeSets[\spl_object_hash($entity)] ?? null;
     }
 }

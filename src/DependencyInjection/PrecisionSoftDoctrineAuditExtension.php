@@ -268,6 +268,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
                     \sprintf('%s:schema:%s:%s', static::BASE_COMMAND_NAME, $commandName, $auditorName),
                     $auditorEntityManagerReference,
                     $storageEntityManagerReference,
+                    new Reference(AnnotationReadService::class),
                 ],
             );
 

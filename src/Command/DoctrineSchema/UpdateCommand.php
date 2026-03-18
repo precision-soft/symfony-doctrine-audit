@@ -26,7 +26,7 @@ final class UpdateCommand extends AbstractCommand
         try {
             $this->warning('careful when running this in a production environment');
 
-            $sourceMetadatas = $this->sourceEntityManager->getMetadataFactory()->getAllMetadata();
+            $sourceMetadatas = $this->getAuditedSourceMetadatas();
 
             $schemaTool = $this->createSchemaTool();
 

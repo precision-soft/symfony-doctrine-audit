@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use Symfony\Component\Console\Input\InputOption;
 
 abstract class AbstractCommand extends \PrecisionSoft\Symfony\Console\Command\AbstractCommand
@@ -20,6 +21,7 @@ abstract class AbstractCommand extends \PrecisionSoft\Symfony\Console\Command\Ab
         string $name,
         protected readonly EntityManagerInterface $sourceEntityManager,
         protected readonly EntityManagerInterface $destinationEntityManager,
+        protected readonly AnnotationReadService $annotationReadService,
     ) {
         parent::__construct($name);
     }
@@ -29,10 +31,17 @@ abstract class AbstractCommand extends \PrecisionSoft\Symfony\Console\Command\Ab
         $this->addOption(static::FORCE, null, InputOption::VALUE_NONE, 'run the sql');
     }
 
+    protected function getAuditedSourceMetadatas(): array
+    {
+        return \array_values(\array_filter(
+            $this->sourceEntityManager->getMetadataFactory()->getAllMetadata(),
+            fn($metadata) => null !== $this->annotationReadService->buildEntityDto($metadata),
+        ));
+    }
+
     protected function createSchemaTool(): SchemaTool
     {
-        /** @todo only consider audited entities */
-        $sourceMetadatas = $this->sourceEntityManager->getMetadataFactory()->getAllMetadata();
+        $sourceMetadatas = $this->getAuditedSourceMetadatas();
 
         foreach ($sourceMetadatas as $classMetadata) {
             $this->destinationEntityManager->getMetadataFactory()

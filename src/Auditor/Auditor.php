@@ -19,6 +19,7 @@ use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto as AnnotationEntityDto
 use PrecisionSoft\Doctrine\Audit\Dto\Auditor\AuditorDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Auditor\EntityDto as AuditorEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
+use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto as StorageEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
@@ -66,9 +67,14 @@ final class Auditor
                 return;
             }
 
-            $this->auditorDto = new AuditorDto($entitiesToDelete, $entitiesToInsert, $entitiesToUpdate);
+            $changeSets = [];
+            foreach ($entitiesToUpdate as $entity) {
+                $changeSets[\spl_object_hash($entity)] = $unitOfWork->getEntityChangeSet($entity);
+            }
 
-            $this->createAuditEntities($entitiesToDelete, StorageEntityDto::OPERATION_DELETE);
+            $this->auditorDto = new AuditorDto($entitiesToDelete, $entitiesToInsert, $entitiesToUpdate, $changeSets);
+
+            $this->createAuditEntities($entitiesToDelete, Operation::Delete);
         } catch (Throwable $t) {
             $this->throw($t);
         }
@@ -83,12 +89,12 @@ final class Auditor
 
             $this->createAuditEntities(
                 $this->auditorDto->getEntitiesToInsert(),
-                StorageEntityDto::OPERATION_INSERT,
+                Operation::Insert,
             );
 
             $this->createAuditEntities(
                 $this->auditorDto->getEntitiesToUpdate(),
-                StorageEntityDto::OPERATION_UPDATE,
+                Operation::Update,
             );
 
             $storageDto = $this->createStorageDto();
@@ -114,7 +120,7 @@ final class Auditor
         }
     }
 
-    private function createAuditEntities(array $entities, string $operation): void
+    private function createAuditEntities(array $entities, Operation $operation): void
     {
         $auditor = $this->auditorDto;
         $unitOfWork = $this->entityManager->getUnitOfWork();
@@ -125,10 +131,15 @@ final class Auditor
                 $unitOfWork->getEntityIdentifier($entity),
             );
 
+            $changeSet = $operation === Operation::Update
+                ? $this->auditorDto->getEntityChangeSet($entity)
+                : null;
+
             $entityDtos = $this->createAuditorEntityDtos(
                 $this->entityManager->getClassMetadata($entity::class),
                 $entityData,
                 $operation,
+                $changeSet,
             );
 
             foreach ($entityDtos as $entityDto) {
@@ -140,7 +151,8 @@ final class Auditor
     private function createAuditorEntityDtos(
         ClassMetadata $class,
         array $entityData,
-        string $operation,
+        Operation $operation,
+        ?array $changeSet = null,
     ): array {
         $entityDtos = [];
 
@@ -196,9 +208,10 @@ final class Auditor
             $fieldMapping = $class->getFieldMapping($field);
             $type = $fieldMapping['type'];
             $value = $entityData[$field] ?? null;
+            $oldValue = isset($changeSet[$field]) ? $changeSet[$field][0] : null;
 
             $auditorEntityDto->addField(
-                new FieldDto($field, $columnName, $type, $value),
+                new FieldDto($field, $columnName, $type, $value, $oldValue),
             );
         }
 
@@ -233,6 +246,7 @@ final class Auditor
                         $this->entityManager->getClassMetadata($class->rootEntityName),
                         $entityData,
                         $operation,
+                        $changeSet,
                     ),
                     $entityDtos,
                 );

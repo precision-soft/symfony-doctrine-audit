@@ -15,6 +15,7 @@ final class FieldDto
         private readonly string $columnName,
         private readonly string $type,
         private readonly mixed $value,
+        private readonly mixed $oldValue = null,
     ) {}
 
     public function getName(): ?string
@@ -35,5 +36,10 @@ final class FieldDto
     public function getValue(): mixed
     {
         return $this->value;
+    }
+
+    public function getOldValue(): mixed
+    {
+        return $this->oldValue;
     }
 }

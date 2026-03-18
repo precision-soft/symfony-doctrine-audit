@@ -20,6 +20,9 @@ use ReflectionProperty;
 
 class AnnotationReadService
 {
+    /** @var array<string, EntityDto|null> */
+    private array $entityDtoCache = [];
+
     public static function getEntityClass(object $class): string
     {
         $class = \is_object($class) ? $class::class : $class;
@@ -63,23 +66,27 @@ class AnnotationReadService
 
     public function buildEntityDto(ClassMetadata $classMetadata): ?EntityDto
     {
-        $reflectionClass = $classMetadata->getReflectionClass() ?? new ReflectionClass($classMetadata->getName());
+        $className = $classMetadata->getName();
+
+        if (\array_key_exists($className, $this->entityDtoCache)) {
+            return $this->entityDtoCache[$className];
+        }
+
+        $reflectionClass = $classMetadata->getReflectionClass() ?? new ReflectionClass($className);
 
         if (false === $this->isEntity($reflectionClass)) {
             /* ignore non entity */
-            return null;
+            return $this->entityDtoCache[$className] = null;
         }
 
         if (false === $this->isAuditable($reflectionClass)) {
             /* ignore not auditable entity */
-            return null;
+            return $this->entityDtoCache[$className] = null;
         }
 
         $ignoredFields = [];
 
         foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-            /* @todo add global ignore columns config */
-
             if (false === $this->isIgnored($reflectionProperty)) {
                 continue;
             }
@@ -94,7 +101,7 @@ class AnnotationReadService
             $ignoredFields[] = $field;
         }
 
-        return new EntityDto($classMetadata->getName(), $ignoredFields);
+        return $this->entityDtoCache[$className] = new EntityDto($className, $ignoredFields);
     }
 
     private function isAuditable(ReflectionClass $reflectionClass): bool

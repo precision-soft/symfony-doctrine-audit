@@ -112,7 +112,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
         static::assertInstanceOf(Reference::class, $arguments[0]);
         static::assertSame(
             \sprintf('doctrine.orm.%s_entity_manager', $entityManager),
-            (string) $arguments[0],
+            (string)$arguments[0],
         );
         static::assertNull($arguments[2]);
     }
@@ -132,7 +132,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
             ->getArguments();
 
         static::assertInstanceOf(Reference::class, $arguments[2]);
-        static::assertSame($logger, (string) $arguments[2]);
+        static::assertSame($logger, (string)$arguments[2]);
     }
 
     public function testFileStorageWithoutLogger(): void
@@ -174,7 +174,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
             ->getArguments();
 
         static::assertInstanceOf(Reference::class, $arguments[1]);
-        static::assertSame($logger, (string) $arguments[1]);
+        static::assertSame($logger, (string)$arguments[1]);
     }
 
     public function testCustomStorageDefinition(): void
@@ -190,7 +190,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
         $serviceId = \sprintf('precision_soft_doctrine_audit.storage.%s', $storageName);
 
         static::assertTrue($container->hasAlias($serviceId));
-        static::assertSame($service, (string) $container->getAlias($serviceId));
+        static::assertSame($service, (string)$container->getAlias($serviceId));
     }
 
     public function testDoctrineStorageMissingEntityManagerThrows(): void

@@ -67,7 +67,7 @@ final class Storage implements StorageInterface
             $this->configuration->getTransactionIdColumnName(),
             $this->configuration->getOperationColumnName(),
         ];
-        $values = [$transactionId, $entityDto->getOperation()];
+        $values = [$transactionId, $entityDto->getOperation()->value];
         $types = [$this->configuration->getTransactionIdColumnType(), Types::STRING];
 
         foreach ($entityDto->getFields() as $columnDto) {

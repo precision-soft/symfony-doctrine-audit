@@ -10,17 +10,12 @@ namespace PrecisionSoft\Doctrine\Audit\Dto\Auditor;
 
 use PrecisionSoft\Doctrine\Audit\Dto\AbstractEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
-use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto as StorageEntityDto;
-use PrecisionSoft\Doctrine\Audit\Exception\Exception;
+use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 
 final class EntityDto extends AbstractEntityDto
 {
-    public function __construct(string $operation, string $class, string $tableName)
+    public function __construct(Operation $operation, string $class, string $tableName)
     {
-        if (!\in_array($operation, StorageEntityDto::OPERATIONS, true)) {
-            throw new Exception(\sprintf('invalid audit operation `%s`', $operation));
-        }
-
         $this->operation = $operation;
         $this->class = $class;
         $this->tableName = $tableName;

@@ -47,20 +47,29 @@ final class FileStorage implements StorageInterface
             $columns = [];
 
             foreach ($entityDto->getFields() as $columnDto) {
-                $columns[$columnDto->getName()] = $columnDto->getValue();
+                $columns[$columnDto->getName()] = null !== $columnDto->getOldValue()
+                    ? ['old' => $columnDto->getOldValue(), 'new' => $columnDto->getValue()]
+                    : $columnDto->getValue();
             }
 
             $entities[] = [
+                'operation' => $entityDto->getOperation()->value,
                 'class' => $entityDto->getClass(),
                 'columns' => $columns,
             ];
         }
 
+        $transactionDto = $storageDto->getTransaction();
+
         $transaction = [
-            'username' => $storageDto->getTransaction()->getUsername(),
+            'username' => $transactionDto->getUsername(),
             'date' => (new DateTime())->format('Y-m-d H:i:s'),
             'entities' => $entities,
         ];
+
+        if (!empty($transactionDto->getExtras())) {
+            $transaction['extras'] = $transactionDto->getExtras();
+        }
 
         return (new JsonEncoder())->encode($transaction, JsonEncoder::FORMAT);
     }

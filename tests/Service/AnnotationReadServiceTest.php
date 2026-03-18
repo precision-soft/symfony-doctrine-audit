@@ -36,6 +36,36 @@ final class AnnotationReadServiceTest extends AbstractTestCase
         );
     }
 
+    public function testGetEntityClassReturnsClassName(): void
+    {
+        $entity = new OneEntity();
+
+        static::assertSame(OneEntity::class, AnnotationReadService::getEntityClass($entity));
+    }
+
+    public function testBuildEntityDtoReturnsNullForNonAuditableEntity(): void
+    {
+        $mock = $this->get(AnnotationReadService::class);
+
+        $nonAuditableMetadata = new MappingClassMetadata(\stdClass::class);
+
+        $result = $mock->buildEntityDto($nonAuditableMetadata);
+
+        static::assertNull($result);
+    }
+
+    public function testBuildEntityDtoCachesResult(): void
+    {
+        $mock = $this->get(AnnotationReadService::class);
+
+        $classMetadata = new MappingClassMetadata(OneEntity::class);
+
+        $first = $mock->buildEntityDto($classMetadata);
+        $second = $mock->buildEntityDto($classMetadata);
+
+        static::assertSame($first, $second);
+    }
+
     public function testBuildEntityDto()
     {
         $entities = [

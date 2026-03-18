@@ -8,13 +8,13 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Type;
 
-use PrecisionSoft\Doctrine\Audit\Dto\Auditor\EntityDto;
+use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Type\Contract\AbstractEnumType;
 
 class AuditOperationType extends AbstractEnumType
 {
     public function getValues(): array
     {
-        return EntityDto::OPERATIONS;
+        return Operation::values();
     }
 }
