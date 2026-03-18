@@ -156,18 +156,42 @@ This library will register two commands for each auditor with a **doctrine type 
 * ``precision-soft:doctrine:audit:schema:create:<em-name>`` - will create the audit database schema for auditor **default**.
 * ``precision-soft:doctrine:audit:schema:update:<em-name>`` - will update the audit database schema for auditor **default**.
 
+## Upgrading
+
+### v2.x → v3.0
+
+**`getOperation()` returns `Operation` enum instead of `string`**
+
+```php
+use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+
+/* before */
+$entity->getOperation() === 'delete'
+
+/* after */
+$entity->getOperation() === Operation::Delete
+/* or, if you need the string value */
+$entity->getOperation()->value === 'delete'
+```
+
+**`OPERATION_*` constants removed from `AbstractEntityDto`**
+
+Replace any references to `AbstractEntityDto::OPERATION_DELETE / OPERATION_INSERT / OPERATION_UPDATE / OPERATIONS`
+with `Operation::Delete / Insert / Update` and `Operation::values()`.
+
+**`FileStorage` JSONL format changed**
+
+- Each entity now includes an `operation` field.
+- UPDATE fields that have changed are serialized as `{"old": ..., "new": ...}` instead of a plain value.
+
 ## Dev
 
 ```shell
-git clone git@gitlab.com:precision-soft-open-source/symfony/doctrine-audit.git
-cd doctrine-audit
+git clone git@github.com:precision-soft/symfony-doctrine-audit.git
+cd symfony-doctrine-audit
 
 ./dc build && ./dc up -d
 ```
-
-## Todo
-
-* Retain old values in case the values are changed directly from database.
 
 ## Inspired by
 
