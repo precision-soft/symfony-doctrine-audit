@@ -41,7 +41,7 @@ final class CreateCommand extends AbstractCommand
             $this->writeln('----------------------------------------------------------------------');
 
             $force = true === $input->getOption(self::FORCE);
-            if ($force) {
+            if (true === $force) {
                 $this->writeln('creating database schema');
 
                 $schemaTool->createSchema($sourceMetadatas);

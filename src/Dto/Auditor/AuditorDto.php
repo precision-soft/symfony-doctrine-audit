@@ -22,23 +22,23 @@ final class AuditorDto
         $this->auditEntities = [];
     }
 
-    public function getEntitiesToDelete(): ?array
+    public function getEntitiesToDelete(): array
     {
         return $this->entitiesToDelete;
     }
 
-    public function getEntitiesToInsert(): ?array
+    public function getEntitiesToInsert(): array
     {
         return $this->entitiesToInsert;
     }
 
-    public function getEntitiesToUpdate(): ?array
+    public function getEntitiesToUpdate(): array
     {
         return $this->entitiesToUpdate;
     }
 
     /** @return EntityDto[] */
-    public function getAuditEntities(): ?array
+    public function getAuditEntities(): array
     {
         return $this->auditEntities;
     }

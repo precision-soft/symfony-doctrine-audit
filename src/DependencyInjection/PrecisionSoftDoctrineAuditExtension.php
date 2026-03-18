@@ -76,7 +76,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         $type = $storage['type'];
         [$entityManager] = $this->getEntityManagerAndConnection($storage);
 
-        if (empty($entityManager)) {
+        if (true === empty($entityManager)) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'entity_manager', $type),
             );
@@ -125,7 +125,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         $type = $storage['type'];
         $file = $storage['file'] ?? null;
 
-        if (empty($file)) {
+        if (true === empty($file)) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'file', $type),
             );
@@ -154,7 +154,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         $type = $storage['type'];
         $service = $storage['service'] ?? null;
 
-        if (empty($service)) {
+        if (true === empty($service)) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'service', $type),
             );
@@ -217,7 +217,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
     {
         foreach ($auditors as $auditorName => $auditor) {
             foreach ($auditor['storages'] as $storageName) {
-                if (!isset($storages[$storageName])) {
+                if (false === isset($storages[$storageName])) {
                     throw new Exception(
                         \sprintf('could not find storage `%s` for auditor `%s`', $storageName, $auditorName),
                     );

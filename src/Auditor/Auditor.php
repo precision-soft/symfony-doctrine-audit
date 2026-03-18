@@ -14,7 +14,6 @@ use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\TransactionProviderInterface;
-use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto as AnnotationEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Auditor\AuditorDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Auditor\EntityDto as AuditorEntityDto;
@@ -63,7 +62,7 @@ final class Auditor
 
             $entitiesToUpdate = $this->filterAuditedEntities($unitOfWork->getScheduledEntityUpdates());
 
-            if (!$entitiesToDelete && !$entitiesToInsert && !$entitiesToUpdate) {
+            if (true === empty($entitiesToDelete) && true === empty($entitiesToInsert) && true === empty($entitiesToUpdate)) {
                 return;
             }
 
@@ -167,18 +166,18 @@ final class Auditor
         $entityDtos[] = $auditorEntityDto;
 
         foreach ($class->getAssociationMappings() as $field => $association) {
-            if ($class->isInheritanceTypeJoined() && $class->isInheritedAssociation($field)) {
+            if (true === $class->isInheritanceTypeJoined() && true === $class->isInheritedAssociation($field)) {
                 continue;
             }
 
-            if (false === (($association['type'] & ClassMetadata::TO_ONE) > 0 && $association['isOwningSide'])) {
+            if (false === (($association['type'] & ClassMetadata::TO_ONE) > 0 && true === $association['isOwningSide'])) {
                 continue;
             }
 
             $data = $entityData[$field] ?? null;
             $relatedId = null;
 
-            if (null !== $data && $unitOfWork->isInIdentityMap($data)) {
+            if (null !== $data && true === $unitOfWork->isInIdentityMap($data)) {
                 $relatedId = $unitOfWork->getEntityIdentifier($data);
             }
 
@@ -190,7 +189,7 @@ final class Auditor
                 $targetFieldName = $targetClass->getFieldName($joinColumn['referencedColumnName']);
                 $type = $targetClass->getTypeOfField($targetFieldName);
 
-                $value = isset($relatedId) ? $relatedId[$targetFieldName] ?? null : null;
+                $value = true === isset($relatedId) ? $relatedId[$targetFieldName] ?? null : null;
 
                 $auditorEntityDto->addField(
                     new FieldDto($field, $sourceColumn, $type, $value),
@@ -199,7 +198,7 @@ final class Auditor
         }
 
         foreach ($class->getFieldNames() as $field) {
-            if ($class->isInheritanceTypeJoined() && $class->isInheritedField($field) && false === $class->isIdentifier($field)) {
+            if (true === $class->isInheritanceTypeJoined() && true === $class->isInheritedField($field) && false === $class->isIdentifier($field)) {
                 continue;
             }
 
@@ -215,7 +214,7 @@ final class Auditor
             );
         }
 
-        if ($class->isInheritanceTypeSingleTable()) {
+        if (true === $class->isInheritanceTypeSingleTable()) {
             $auditorEntityDto->addField(
                 new FieldDto(
                     $class->discriminatorColumn['fieldName'],
@@ -226,7 +225,7 @@ final class Auditor
             );
         }
 
-        if ($class->isInheritanceTypeJoined()) {
+        if (true === $class->isInheritanceTypeJoined()) {
             $field = $class->discriminatorColumn['fieldName'];
 
             if (true === $class->isRootEntity()) {
@@ -256,14 +255,6 @@ final class Auditor
         return $entityDtos;
     }
 
-    private function getJoinColumnName(array $joinColumn, ClassMetadata $class): string
-    {
-        $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
-        $platform = $this->entityManager->getConnection()->getDatabasePlatform();
-
-        return $quoteStrategy->getJoinColumnName($joinColumn, $class, $platform);
-    }
-
     private function getTableName(ClassMetadata $class): string
     {
         $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
@@ -280,12 +271,12 @@ final class Auditor
         return $quoteStrategy->getColumnName($field, $class, $platform);
     }
 
-    private function getOriginalEntityData($entity)
+    private function getOriginalEntityData(object $entity): array
     {
         $class = $this->entityManager->getClassMetadata($entity::class);
         $data = $this->entityManager->getUnitOfWork()->getOriginalEntityData($entity);
 
-        if ($class->isVersioned) {
+        if (true === $class->isVersioned) {
             $versionField = $class->versionField;
             $data[$versionField] = $class->reflFields[$versionField]->getValue($entity);
         }
@@ -315,7 +306,7 @@ final class Auditor
                     $fields[] = $fieldDto;
                 }
 
-                if (!$fields) {
+                if (true === empty($fields)) {
                     return null;
                 }
 
@@ -339,11 +330,11 @@ final class Auditor
         foreach ($allEntities as $entity) {
             $hash = \spl_object_hash($entity);
 
-            if (isset($entities[$hash])) {
+            if (true === isset($entities[$hash])) {
                 continue;
             }
 
-            if (!$this->isAudited(AnnotationReadService::getEntityClass($entity))) {
+            if (false === $this->isAudited(AnnotationReadService::getEntityClass($entity))) {
                 continue;
             }
 

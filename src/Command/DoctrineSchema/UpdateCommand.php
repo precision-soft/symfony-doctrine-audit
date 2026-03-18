@@ -41,7 +41,7 @@ final class UpdateCommand extends AbstractCommand
             $this->writeln('----------------------------------------------------------------------');
 
             $force = true === $input->getOption(self::FORCE);
-            if ($force) {
+            if (true === $force) {
                 $this->writeln('updating database schema');
 
                 $schemaTool->updateSchema($sourceMetadatas, true);

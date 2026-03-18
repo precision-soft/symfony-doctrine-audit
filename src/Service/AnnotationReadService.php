@@ -52,7 +52,7 @@ class AnnotationReadService
 
             $entityClass = $entityDto->getClass();
 
-            if (isset($entities[$entityClass])) {
+            if (true === isset($entities[$entityClass])) {
                 throw new Exception(
                     \sprintf('duplicate annotation for entity class `%s`', $entityClass),
                 );
@@ -93,7 +93,7 @@ class AnnotationReadService
 
             $field = $reflectionProperty->getName();
 
-            if ($classMetadata->isIdentifier($field)) {
+            if (true === $classMetadata->isIdentifier($field)) {
                 /* identifiers are never ignored */
                 continue;
             }
@@ -121,7 +121,7 @@ class AnnotationReadService
     {
         $attributes = $reflectionClass->getAttributes(Entity::class);
 
-        return empty($attributes) === false;
+        return false === empty($attributes);
     }
 
     private function isIgnored(ReflectionProperty $reflectionProperty): bool

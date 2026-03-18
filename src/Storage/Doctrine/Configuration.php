@@ -24,22 +24,22 @@ final class Configuration
         $this->operationColumnName = $config['operation_column_name'] ?? 'audit_operation';
     }
 
-    public function getTransactionTableName(): ?string
+    public function getTransactionTableName(): string
     {
         return $this->transactionTableName;
     }
 
-    public function getTransactionIdColumnName(): ?string
+    public function getTransactionIdColumnName(): string
     {
         return $this->transactionIdColumnName;
     }
 
-    public function getTransactionIdColumnType(): ?string
+    public function getTransactionIdColumnType(): string
     {
         return $this->transactionIdColumnType;
     }
 
-    public function getOperationColumnName(): ?string
+    public function getOperationColumnName(): string
     {
         return $this->operationColumnName;
     }

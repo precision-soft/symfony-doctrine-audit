@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Dto\Storage;
 
-/** this and all of its children should be read only */
 final class StorageDto
 {
     public function __construct(
@@ -16,13 +15,13 @@ final class StorageDto
         private readonly array $entities,
     ) {}
 
-    public function getTransaction(): ?TransactionDto
+    public function getTransaction(): TransactionDto
     {
         return $this->transaction;
     }
 
     /** @return EntityDto[] */
-    public function getEntities(): ?array
+    public function getEntities(): array
     {
         return $this->entities;
     }

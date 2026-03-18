@@ -18,17 +18,17 @@ final class FieldDto
         private readonly mixed $oldValue = null,
     ) {}
 
-    public function getName(): ?string
+    public function getName(): string
     {
         return $this->name;
     }
 
-    public function getColumnName(): ?string
+    public function getColumnName(): string
     {
         return $this->columnName;
     }
 
-    public function getType(): ?string
+    public function getType(): string
     {
         return $this->type;
     }

@@ -20,18 +20,18 @@ abstract class AbstractEntityDto
         return $this->operation;
     }
 
-    public function getClass(): ?string
+    public function getClass(): string
     {
         return $this->class;
     }
 
-    public function getTableName(): ?string
+    public function getTableName(): string
     {
         return $this->tableName;
     }
 
     /** @return FieldDto[] */
-    public function getFields(): ?array
+    public function getFields(): array
     {
         return $this->fields;
     }
