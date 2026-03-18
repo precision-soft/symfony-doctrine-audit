@@ -16,6 +16,10 @@ alias app="cd /var/www/html"
 alias full="clear && scomposer install && pfix && punit && pstan"
 # end generic
 
+# git
+git config --global --add safe.directory /var/www/html
+# end git
+
 # composer
 scomposer() {
     if [[ -e 'composer.json' ]]; then

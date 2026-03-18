@@ -84,7 +84,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
 
         $this->defineStorageDoctrineConfig($containerBuilder, $storageName, $storage['config'] ?? []);
 
-        $logger = $auditor['logger'] ?? null;
+        $logger = $storage['logger'] ?? null;
 
         $definition = new Definition(
             Storage::class,
@@ -131,7 +131,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
             );
         }
 
-        $logger = $auditor['logger'] ?? null;
+        $logger = $storage['logger'] ?? null;
 
         $definition = new Definition(
             FileStorage::class,

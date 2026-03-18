@@ -5,3 +5,4 @@
 /.phpcs-cache
 /.phpunit.result.cache
 /*.zip
+/CLAUDE.md

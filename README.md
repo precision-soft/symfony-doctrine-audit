@@ -167,7 +167,6 @@ cd doctrine-audit
 
 ## Todo
 
-* Unit tests.
 * Retain old values in case the values are changed directly from database.
 
 ## Inspired by
