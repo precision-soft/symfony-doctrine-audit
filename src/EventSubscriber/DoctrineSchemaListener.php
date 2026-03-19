@@ -51,6 +51,9 @@ final class DoctrineSchemaListener
                     $columnName = $column->getName();
 
                     $field = $classMetadata->getFieldForColumn($columnName);
+                    if (null === $field) {
+                        continue;
+                    }
                     if (\in_array($field, $entityDto->getIgnoredFields(), true)
                         || \in_array($field, $this->auditorConfiguration->getIgnoredFields(), true)
                     ) {

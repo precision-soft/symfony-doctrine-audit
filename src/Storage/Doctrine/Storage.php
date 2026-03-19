@@ -15,6 +15,7 @@ use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
+use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -58,7 +59,12 @@ final class Storage implements StorageInterface
             ],
         );
 
-        return (int)$connection->lastInsertId();
+        $lastId = $connection->lastInsertId();
+        if (false === $lastId || null === $lastId || '0' === $lastId || 0 === $lastId) {
+            throw new Exception('failed to retrieve last insert id');
+        }
+
+        return (int)$lastId;
     }
 
     private function saveEntity(int $transactionId, EntityDto $entityDto): void
