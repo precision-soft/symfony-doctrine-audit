@@ -26,6 +26,11 @@ final class FileStorage implements StorageInterface
         private readonly ?LoggerInterface $logger,
     ) {}
 
+    private function getLogger(): ?LoggerInterface
+    {
+        return $this->logger;
+    }
+
     public function save(StorageDto $storageDto): void
     {
         try {

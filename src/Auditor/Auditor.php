@@ -46,6 +46,11 @@ final class Auditor
         $this->auditorDto = null;
     }
 
+    private function getLogger(): ?LoggerInterface
+    {
+        return $this->logger;
+    }
+
     public function onFlush(OnFlushEventArgs $eventArgs): void
     {
         /* @todo compute updates transactions somewhere */

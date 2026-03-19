@@ -1,7 +1,7 @@
 {
     "name": "precision-soft/symfony-doctrine-audit",
     "type": "symfony-bundle",
-    "version": "v3.0.2",
+    "version": "v3.0.3",
     "description": "doctrine audit library",
     "keywords": [
         "doctrine",
