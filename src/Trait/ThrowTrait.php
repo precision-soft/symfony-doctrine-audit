@@ -27,7 +27,7 @@ trait ThrowTrait
                     'code' => $t->getCode(),
                     'file' => $t->getFile(),
                     'line' => $t->getLine(),
-                    'trace' => $t->getTrace(),
+                    'trace' => $t->getTraceAsString(),
                 ],
             );
         }

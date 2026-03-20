@@ -296,6 +296,10 @@ final class Auditor
         $entities = \array_map(
             function (AuditorEntityDto $entityDto): ?StorageEntityDto {
                 $fields = [];
+                if (false === isset($this->auditedEntities[$entityDto->getClass()])) {
+                    return null;
+                }
+
                 /** @var AnnotationEntityDto $annotationEntityDto */
                 $annotationEntityDto = $this->auditedEntities[$entityDto->getClass()];
 

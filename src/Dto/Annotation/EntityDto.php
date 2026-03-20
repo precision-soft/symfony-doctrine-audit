@@ -15,12 +15,12 @@ final class EntityDto
         private readonly array $ignoredFields,
     ) {}
 
-    public function getClass(): ?string
+    public function getClass(): string
     {
         return $this->class;
     }
 
-    public function getIgnoredFields(): ?array
+    public function getIgnoredFields(): array
     {
         return $this->ignoredFields;
     }

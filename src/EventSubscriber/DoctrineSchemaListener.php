@@ -162,7 +162,7 @@ final class DoctrineSchemaListener
         }
     }
 
-    private function updateType(Column $column)
+    private function updateType(Column $column): void
     {
         $columnType = $column->getType();
 

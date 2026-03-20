@@ -14,7 +14,7 @@ final class Configuration
         private readonly array $ignoredFields,
     ) {}
 
-    public function getIgnoredFields(): ?array
+    public function getIgnoredFields(): array
     {
         return $this->ignoredFields;
     }

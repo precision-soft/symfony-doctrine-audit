@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Storage\Doctrine;
 
-use DateTime;
+use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
@@ -56,11 +56,11 @@ final class Storage implements StorageInterface
             $this->configuration->getTransactionTableName(),
             [
                 'username' => $transactionDto->getUsername(),
-                'created' => new DateTime(),
+                'created' => new DateTimeImmutable(),
             ],
             [
                 Types::STRING,
-                Types::DATE_MUTABLE,
+                Types::DATETIME_IMMUTABLE,
             ],
         );
 
