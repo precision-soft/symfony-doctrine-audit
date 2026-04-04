@@ -18,9 +18,9 @@ final class EntityDtoTest extends TestCase
 {
     public function testGetClassReturnsString(): void
     {
-        $dto = new EntityDto('App\\Entity\\User', ['password']);
+        $entityDto = new EntityDto('App\\Entity\\User', ['password']);
 
-        $result = $dto->getClass();
+        $result = $entityDto->getClass();
 
         static::assertIsString($result);
         static::assertSame('App\\Entity\\User', $result);
@@ -29,9 +29,9 @@ final class EntityDtoTest extends TestCase
     public function testGetIgnoredFieldsReturnsArray(): void
     {
         $fields = ['password', 'salt'];
-        $dto = new EntityDto('App\\Entity\\User', $fields);
+        $entityDto = new EntityDto('App\\Entity\\User', $fields);
 
-        $result = $dto->getIgnoredFields();
+        $result = $entityDto->getIgnoredFields();
 
         static::assertIsArray($result);
         static::assertSame($fields, $result);
@@ -39,8 +39,8 @@ final class EntityDtoTest extends TestCase
 
     public function testGetIgnoredFieldsEmptyArray(): void
     {
-        $dto = new EntityDto('App\\Entity\\User', []);
+        $entityDto = new EntityDto('App\\Entity\\User', []);
 
-        static::assertSame([], $dto->getIgnoredFields());
+        static::assertSame([], $entityDto->getIgnoredFields());
     }
 }

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Storage;
 
-use DateTime;
+use DateTimeImmutable;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
@@ -52,7 +52,7 @@ final class FileStorage implements StorageInterface
             $columns = [];
 
             foreach ($entityDto->getFields() as $columnDto) {
-                $columns[$columnDto->getName()] = null !== $columnDto->getOldValue()
+                $columns[$columnDto->getName()] = true === $columnDto->hasOldValue()
                     ? ['old' => $columnDto->getOldValue(), 'new' => $columnDto->getValue()]
                     : $columnDto->getValue();
             }
@@ -68,7 +68,7 @@ final class FileStorage implements StorageInterface
 
         $transaction = [
             'username' => $transactionDto->getUsername(),
-            'date' => (new DateTime())->format('Y-m-d H:i:s'),
+            'date' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
             'entities' => $entities,
         ];
 

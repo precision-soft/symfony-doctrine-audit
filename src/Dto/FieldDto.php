@@ -16,6 +16,7 @@ final class FieldDto
         private readonly string $type,
         private readonly mixed $value,
         private readonly mixed $oldValue = null,
+        private readonly bool $hasOldValue = false,
     ) {}
 
     public function getName(): string
@@ -41,5 +42,10 @@ final class FieldDto
     public function getOldValue(): mixed
     {
         return $this->oldValue;
+    }
+
+    public function hasOldValue(): bool
+    {
+        return $this->hasOldValue;
     }
 }

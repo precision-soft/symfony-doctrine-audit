@@ -66,7 +66,7 @@ final class FileStorageTest extends TestCase
         $storage = new FileStorage($this->tmpFile, null);
 
         $fields = [
-            new FieldDto('name', 'name', 'string', 'John', 'Jane'),
+            new FieldDto('name', 'name', 'string', 'John', 'Jane', true),
         ];
         $entity = new EntityDto(Operation::Update, 'App\\Entity\\User', 'user', $fields);
         $transaction = new TransactionDto('admin');

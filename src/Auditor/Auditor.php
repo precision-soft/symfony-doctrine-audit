@@ -53,10 +53,7 @@ final class Auditor
 
     public function onFlush(OnFlushEventArgs $eventArgs): void
     {
-        /* @todo compute updates transactions somewhere */
-
         try {
-            /* @todo only init the modified entities */
             $this->auditedEntities ??= $this->annotationReadService->read($this->entityManager);
 
             $unitOfWork = $this->entityManager->getUnitOfWork();
@@ -107,7 +104,6 @@ final class Auditor
         } catch (Throwable $t) {
             $this->throw($t);
         } finally {
-            /* reset auditor state */
             $this->auditorDto = null;
 
             \gc_collect_cycles();
@@ -118,15 +114,12 @@ final class Auditor
     {
         /** @var StorageInterface $storage */
         foreach ($this->storages as $storage) {
-            /* @todo maybe log each storage */
-
             $storage->save($storageDto);
         }
     }
 
     private function createAuditEntities(array $entities, Operation $operation): void
     {
-        $auditor = $this->auditorDto;
         $unitOfWork = $this->entityManager->getUnitOfWork();
 
         foreach ($entities as $entity) {
@@ -135,7 +128,7 @@ final class Auditor
                 $unitOfWork->getEntityIdentifier($entity),
             );
 
-            $changeSet = $operation === Operation::Update
+            $changeSet = Operation::Update === $operation
                 ? $this->auditorDto->getEntityChangeSet($entity)
                 : null;
 
@@ -147,13 +140,13 @@ final class Auditor
             );
 
             foreach ($entityDtos as $entityDto) {
-                $auditor->addAuditEntity($entityDto);
+                $this->auditorDto->addAuditEntity($entityDto);
             }
         }
     }
 
     private function createAuditorEntityDtos(
-        ClassMetadata $class,
+        ClassMetadata $classMetadata,
         array $entityData,
         Operation $operation,
         ?array $changeSet = null,
@@ -164,14 +157,14 @@ final class Auditor
 
         $auditorEntityDto = new AuditorEntityDto(
             $operation,
-            $class->getName(),
-            $this->getTableName($class),
+            $classMetadata->getName(),
+            $this->getTableName($classMetadata),
         );
 
         $entityDtos[] = $auditorEntityDto;
 
-        foreach ($class->getAssociationMappings() as $field => $association) {
-            if (true === $class->isInheritanceTypeJoined() && true === $class->isInheritedAssociation($field)) {
+        foreach ($classMetadata->getAssociationMappings() as $field => $association) {
+            if (true === $classMetadata->isInheritanceTypeJoined() && true === $classMetadata->isInheritedAssociation($field)) {
                 continue;
             }
 
@@ -186,13 +179,13 @@ final class Auditor
                 $relatedId = $unitOfWork->getEntityIdentifier($data);
             }
 
-            $targetClass = $this->entityManager->getClassMetadata($association['targetEntity']);
+            $targetClassMetadata = $this->entityManager->getClassMetadata($association['targetEntity']);
 
             foreach ($association['joinColumns'] as $joinColumn) {
                 $sourceColumn = $joinColumn['name'];
 
-                $targetFieldName = $targetClass->getFieldName($joinColumn['referencedColumnName']);
-                $type = $targetClass->getTypeOfField($targetFieldName);
+                $targetFieldName = $targetClassMetadata->getFieldName($joinColumn['referencedColumnName']);
+                $type = $targetClassMetadata->getTypeOfField($targetFieldName);
 
                 $value = true === isset($relatedId) ? $relatedId[$targetFieldName] ?? null : null;
 
@@ -202,52 +195,53 @@ final class Auditor
             }
         }
 
-        foreach ($class->getFieldNames() as $field) {
-            if (true === $class->isInheritanceTypeJoined() && true === $class->isInheritedField($field) && false === $class->isIdentifier($field)) {
+        foreach ($classMetadata->getFieldNames() as $field) {
+            if (true === $classMetadata->isInheritanceTypeJoined() && true === $classMetadata->isInheritedField($field) && false === $classMetadata->isIdentifier($field)) {
                 continue;
             }
 
-            $columnName = $this->getColumnName($field, $class);
+            $columnName = $this->getColumnName($field, $classMetadata);
 
-            $fieldMapping = $class->getFieldMapping($field);
+            $fieldMapping = $classMetadata->getFieldMapping($field);
             $type = $fieldMapping['type'];
             $value = $entityData[$field] ?? null;
-            $oldValue = isset($changeSet[$field]) ? $changeSet[$field][0] : null;
+            $hasOldValue = isset($changeSet[$field]);
+            $oldValue = true === $hasOldValue ? $changeSet[$field][0] : null;
 
             $auditorEntityDto->addField(
-                new FieldDto($field, $columnName, $type, $value, $oldValue),
+                new FieldDto($field, $columnName, $type, $value, $oldValue, $hasOldValue),
             );
         }
 
-        if (true === $class->isInheritanceTypeSingleTable()) {
+        if (true === $classMetadata->isInheritanceTypeSingleTable()) {
             $auditorEntityDto->addField(
                 new FieldDto(
-                    $class->discriminatorColumn['fieldName'],
-                    $class->discriminatorColumn['name'],
-                    $class->discriminatorColumn['type'],
-                    $class->discriminatorValue,
+                    $classMetadata->discriminatorColumn['fieldName'],
+                    $classMetadata->discriminatorColumn['name'],
+                    $classMetadata->discriminatorColumn['type'],
+                    $classMetadata->discriminatorValue,
                 ),
             );
         }
 
-        if (true === $class->isInheritanceTypeJoined()) {
-            $field = $class->discriminatorColumn['fieldName'];
+        if (true === $classMetadata->isInheritanceTypeJoined()) {
+            $field = $classMetadata->discriminatorColumn['fieldName'];
 
-            if (true === $class->isRootEntity()) {
+            if (true === $classMetadata->isRootEntity()) {
                 $auditorEntityDto->addField(
                     new FieldDto(
                         $field,
-                        $class->discriminatorColumn['name'],
-                        $class->discriminatorColumn['type'],
+                        $classMetadata->discriminatorColumn['name'],
+                        $classMetadata->discriminatorColumn['type'],
                         $entityData[$field] ?? null,
                     ),
                 );
             } else {
-                $entityData[$field] = $class->discriminatorValue;
+                $entityData[$field] = $classMetadata->discriminatorValue;
 
                 $entityDtos = \array_merge(
                     $this->createAuditorEntityDtos(
-                        $this->entityManager->getClassMetadata($class->rootEntityName),
+                        $this->entityManager->getClassMetadata($classMetadata->rootEntityName),
                         $entityData,
                         $operation,
                         $changeSet,
@@ -260,30 +254,30 @@ final class Auditor
         return $entityDtos;
     }
 
-    private function getTableName(ClassMetadata $class): string
+    private function getTableName(ClassMetadata $classMetadata): string
     {
         $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
         $platform = $this->entityManager->getConnection()->getDatabasePlatform();
 
-        return $quoteStrategy->getTableName($class, $platform);
+        return $quoteStrategy->getTableName($classMetadata, $platform);
     }
 
-    private function getColumnName(string $field, ClassMetadata $class): string
+    private function getColumnName(string $field, ClassMetadata $classMetadata): string
     {
         $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
         $platform = $this->entityManager->getConnection()->getDatabasePlatform();
 
-        return $quoteStrategy->getColumnName($field, $class, $platform);
+        return $quoteStrategy->getColumnName($field, $classMetadata, $platform);
     }
 
     private function getOriginalEntityData(object $entity): array
     {
-        $class = $this->entityManager->getClassMetadata($entity::class);
+        $classMetadata = $this->entityManager->getClassMetadata($entity::class);
         $data = $this->entityManager->getUnitOfWork()->getOriginalEntityData($entity);
 
-        if (true === $class->isVersioned) {
-            $versionField = $class->versionField;
-            $data[$versionField] = $class->reflFields[$versionField]->getValue($entity);
+        if (true === $classMetadata->isVersioned) {
+            $versionField = $classMetadata->versionField;
+            $data[$versionField] = $classMetadata->reflFields[$versionField]->getValue($entity);
         }
 
         return $data;
@@ -355,6 +349,6 @@ final class Auditor
 
     private function isAudited(string $entityClass): bool
     {
-        return isset($this->auditedEntities[$entityClass]);
+        return true === isset($this->auditedEntities[$entityClass]);
     }
 }

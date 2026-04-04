@@ -18,28 +18,30 @@ final class FieldDtoTest extends TestCase
 {
     public function testGettersWithoutOldValue(): void
     {
-        $field = new FieldDto('name', 'name_col', 'string', 'John');
+        $fieldDto = new FieldDto('name', 'name_col', 'string', 'John');
 
-        static::assertSame('name', $field->getName());
-        static::assertSame('name_col', $field->getColumnName());
-        static::assertSame('string', $field->getType());
-        static::assertSame('John', $field->getValue());
-        static::assertNull($field->getOldValue());
+        static::assertSame('name', $fieldDto->getName());
+        static::assertSame('name_col', $fieldDto->getColumnName());
+        static::assertSame('string', $fieldDto->getType());
+        static::assertSame('John', $fieldDto->getValue());
+        static::assertSame(null, $fieldDto->getOldValue());
+        static::assertSame(false, $fieldDto->hasOldValue());
     }
 
     public function testGettersWithOldValue(): void
     {
-        $field = new FieldDto('name', 'name_col', 'string', 'John', 'Jane');
+        $fieldDto = new FieldDto('name', 'name_col', 'string', 'John', 'Jane', hasOldValue: true);
 
-        static::assertSame('John', $field->getValue());
-        static::assertSame('Jane', $field->getOldValue());
+        static::assertSame('John', $fieldDto->getValue());
+        static::assertSame('Jane', $fieldDto->getOldValue());
+        static::assertSame(true, $fieldDto->hasOldValue());
     }
 
     public function testNullableValues(): void
     {
-        $field = new FieldDto('deleted_at', 'deleted_at', 'datetime', null, null);
+        $fieldDto = new FieldDto('deleted_at', 'deleted_at', 'datetime', null, null);
 
-        static::assertNull($field->getValue());
-        static::assertNull($field->getOldValue());
+        static::assertSame(null, $fieldDto->getValue());
+        static::assertSame(null, $fieldDto->getOldValue());
     }
 }

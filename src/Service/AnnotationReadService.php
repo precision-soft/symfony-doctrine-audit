@@ -23,17 +23,17 @@ class AnnotationReadService
     /** @var array<string, EntityDto|null> */
     private array $entityDtoCache = [];
 
-    public static function getEntityClass(object $class): string
+    public static function getEntityClass(object $entity): string
     {
-        $class = \is_object($class) ? $class::class : $class;
+        $className = $entity::class;
 
         $proxyString = '\\__CG__\\';
-        $proxyPosition = \mb_strrpos($class, $proxyString);
+        $proxyPosition = \mb_strrpos($className, $proxyString);
         if (false !== $proxyPosition) {
-            return \mb_substr($class, $proxyPosition + \strlen($proxyString));
+            return \mb_substr($className, $proxyPosition + \strlen($proxyString));
         }
 
-        return $class;
+        return $className;
     }
 
     /** @return EntityDto[] */
@@ -75,12 +75,10 @@ class AnnotationReadService
         $reflectionClass = $classMetadata->getReflectionClass() ?? new ReflectionClass($className);
 
         if (false === $this->isEntity($reflectionClass)) {
-            /* ignore non entity */
             return $this->entityDtoCache[$className] = null;
         }
 
         if (false === $this->isAuditable($reflectionClass)) {
-            /* ignore not auditable entity */
             return $this->entityDtoCache[$className] = null;
         }
 
@@ -94,7 +92,7 @@ class AnnotationReadService
             $field = $reflectionProperty->getName();
 
             if (true === $classMetadata->isIdentifier($field)) {
-                /* identifiers are never ignored */
+                /** @info identifiers are never ignored */
                 continue;
             }
 
@@ -111,7 +109,7 @@ class AnnotationReadService
             /** @var Auditable $auditable */
             $auditable = $attribute->newInstance();
 
-            return $auditable->enabled;
+            return true === $auditable->enabled;
         }
 
         return false;
@@ -131,7 +129,7 @@ class AnnotationReadService
             /** @var Ignore $ignore */
             $ignore = $attribute->newInstance();
 
-            return $ignore->enabled;
+            return true === $ignore->enabled;
         }
 
         return false;

@@ -33,4 +33,31 @@ final class ConfigurationTest extends TestCase
 
         static::assertSame([], $configuration->getIgnoredFields());
     }
+
+    public function testGetIgnoredFieldsSingleField(): void
+    {
+        $configuration = new Configuration(['secret']);
+
+        static::assertCount(1, $configuration->getIgnoredFields());
+        static::assertSame('secret', $configuration->getIgnoredFields()[0]);
+    }
+
+    public function testGetIgnoredFieldsPreservesOrder(): void
+    {
+        $fields = ['z_field', 'a_field', 'm_field'];
+        $configuration = new Configuration($fields);
+
+        static::assertSame($fields, $configuration->getIgnoredFields());
+    }
+
+    public function testGetIgnoredFieldsReturnsSameInstance(): void
+    {
+        $fields = ['password'];
+        $configuration = new Configuration($fields);
+
+        $first = $configuration->getIgnoredFields();
+        $second = $configuration->getIgnoredFields();
+
+        static::assertSame($first, $second);
+    }
 }

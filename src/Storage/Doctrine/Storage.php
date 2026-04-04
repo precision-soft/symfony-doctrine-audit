@@ -87,14 +87,18 @@ final class Storage implements StorageInterface
             $types[] = $columnDto->getType();
         }
 
+        $connection = $this->entityManager->getConnection();
+        $platform = $connection->getDatabasePlatform();
+
+        $quotedTable = $platform->quoteIdentifier($entityDto->getTableName());
+        $quotedColumns = \array_map(fn($columnName) => $platform->quoteIdentifier($columnName), $columns);
+
         $sql = \sprintf(
             'INSERT INTO %s (%s) VALUES (%s)',
-            $entityDto->getTableName(),
-            \implode(', ', $columns),
+            $quotedTable,
+            \implode(', ', $quotedColumns),
             \implode(', ', \array_fill(0, \count($columns), '?')),
         );
-
-        $connection = $this->entityManager->getConnection();
 
         try {
             $connection->executeStatement($sql, $values, $types);

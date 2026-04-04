@@ -50,7 +50,14 @@ final class DoctrineSchemaListener
                 foreach ($entityTable->getColumns() as $column) {
                     $columnName = $column->getName();
 
-                    $field = $classMetadata->getFieldForColumn($columnName);
+                    $field = null;
+                    foreach ($classMetadata->fieldMappings as $fieldName => $mapping) {
+                        $mappedColumnName = true === \is_object($mapping) ? $mapping->columnName : ($mapping['columnName'] ?? null);
+                        if ($mappedColumnName === $columnName) {
+                            $field = $fieldName;
+                            break;
+                        }
+                    }
                     if (null === $field) {
                         continue;
                     }
@@ -166,8 +173,6 @@ final class DoctrineSchemaListener
     {
         $columnType = $column->getType();
 
-        /** @todo maybe keep the original type and only add more values to the set */
-
         switch (true) {
             case $columnType instanceof AbstractEnumType:
                 $column->setType(Type::getType(Types::STRING))->setLength(255);
@@ -176,7 +181,6 @@ final class DoctrineSchemaListener
                 $column->setType(Type::getType(Types::STRING))->setLength(255);
                 break;
             default:
-                /** @todo handle other custom types */
                 break;
         }
     }

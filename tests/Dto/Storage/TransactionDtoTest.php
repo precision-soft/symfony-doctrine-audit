@@ -18,18 +18,18 @@ final class TransactionDtoTest extends TestCase
 {
     public function testGetUsernameWithoutExtras(): void
     {
-        $dto = new TransactionDto('admin');
+        $transactionDto = new TransactionDto('admin');
 
-        static::assertSame('admin', $dto->getUsername());
-        static::assertSame([], $dto->getExtras());
+        static::assertSame('admin', $transactionDto->getUsername());
+        static::assertSame([], $transactionDto->getExtras());
     }
 
     public function testGetExtras(): void
     {
         $extras = ['ip' => '127.0.0.1', 'reason' => 'manual correction'];
-        $dto = new TransactionDto('admin', $extras);
+        $transactionDto = new TransactionDto('admin', $extras);
 
-        static::assertSame('admin', $dto->getUsername());
-        static::assertSame($extras, $dto->getExtras());
+        static::assertSame('admin', $transactionDto->getUsername());
+        static::assertSame($extras, $transactionDto->getExtras());
     }
 }

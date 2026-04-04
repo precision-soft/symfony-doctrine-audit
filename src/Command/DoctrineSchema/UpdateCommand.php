@@ -8,9 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema;
 
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Throwable;
+use Doctrine\ORM\Tools\SchemaTool;
 
 final class UpdateCommand extends AbstractCommand
 {
@@ -21,39 +19,23 @@ final class UpdateCommand extends AbstractCommand
         $this->setDescription('update the database schema for the corresponding auditor');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function getSchemaSql(SchemaTool $schemaTool, array $metadatas): array
     {
-        try {
-            $this->warning('careful when running this in a production environment');
+        return $schemaTool->getUpdateSchemaSql($metadatas);
+    }
 
-            $sourceMetadatas = $this->getAuditedSourceMetadatas();
+    protected function executeSchema(SchemaTool $schemaTool, array $metadatas): void
+    {
+        $schemaTool->updateSchema($metadatas);
+    }
 
-            $schemaTool = $this->createSchemaTool();
+    protected function getActionVerb(): string
+    {
+        return 'updating';
+    }
 
-            $this->writeln('the following sql statements will be executed');
-
-            $sqls = $schemaTool->getUpdateSchemaSql($sourceMetadatas, true);
-
-            foreach ($sqls as $sql) {
-                $this->style->writeln(\sprintf('    %s;', $sql));
-            }
-
-            $this->writeln('----------------------------------------------------------------------');
-
-            $force = true === $input->getOption(self::FORCE);
-            if (true === $force) {
-                $this->writeln('updating database schema');
-
-                $schemaTool->updateSchema($sourceMetadatas, true);
-
-                $this->success('database schema updated successfully');
-            }
-        } catch (Throwable $t) {
-            $this->error($t->getMessage(), $t, true);
-
-            return self::FAILURE;
-        }
-
-        return self::SUCCESS;
+    protected function getCompletedVerb(): string
+    {
+        return 'updated';
     }
 }

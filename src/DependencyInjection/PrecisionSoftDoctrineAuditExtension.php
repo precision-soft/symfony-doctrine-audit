@@ -34,17 +34,17 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
 
     public function load(array $configs, ContainerBuilder $containerBuilder): void
     {
-        $loader = new PhpFileLoader($containerBuilder, new FileLocator(__DIR__ . '/../Resources/config'));
-        $loader->load('services.php');
+        $phpFileLoader = new PhpFileLoader($containerBuilder, new FileLocator(__DIR__ . '/../Resources/config'));
+        $phpFileLoader->load('services.php');
 
         $configuration = new Configuration();
-        $config = $this->processConfiguration($configuration, $configs);
+        $processedConfig = $this->processConfiguration($configuration, $configs);
 
-        $this->defineStorages($containerBuilder, $config['storages']);
+        $this->defineStorages($containerBuilder, $processedConfig['storages']);
 
-        $this->defineAuditors($containerBuilder, $config['auditors']);
+        $this->defineAuditors($containerBuilder, $processedConfig['auditors']);
 
-        $this->defineServices($containerBuilder, $config['auditors'], $config['storages']);
+        $this->defineServices($containerBuilder, $processedConfig['auditors'], $processedConfig['storages']);
     }
 
     private function defineStorages(ContainerBuilder $containerBuilder, array $storages): void
@@ -329,7 +329,6 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
 
     private function getEntityManager(string $name): Reference
     {
-        /* @todo get from doctrine */
         return new Reference(\sprintf('doctrine.orm.%s_entity_manager', $name));
     }
 

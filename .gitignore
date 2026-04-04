@@ -4,5 +4,13 @@
 /.php-cs-fixer.cache
 /.phpcs-cache
 /.phpunit.result.cache
-/*.zip
+/.phpunit.cache/
+/phpunit.xml
+/var/
+/.claude/
 /CLAUDE.md
+/AUDIT_REPORT.md
+.dev/docker/.env.local
+/*.tar.gz
+/.temp/
+/diff*.txt

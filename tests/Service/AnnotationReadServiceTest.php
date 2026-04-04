@@ -51,7 +51,7 @@ final class AnnotationReadServiceTest extends AbstractTestCase
 
         $result = $mock->buildEntityDto($nonAuditableMetadata);
 
-        static::assertNull($result);
+        static::assertSame(null, $result);
     }
 
     public function testBuildEntityDtoCachesResult(): void

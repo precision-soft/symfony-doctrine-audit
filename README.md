@@ -6,6 +6,82 @@ Any suggestions are welcomed.
 
 **This is a work in progress**.
 
+## Requirements
+
+- PHP >= 8.2
+- Symfony 7.*
+- Doctrine ORM 3.*
+- Doctrine DBAL 4.*
+
+## Installation
+
+```shell
+composer require precision-soft/symfony-doctrine-audit
+```
+
+Register the bundle in `config/bundles.php` (if not auto-discovered):
+
+```php
+return [
+    PrecisionSoft\Doctrine\Audit\PrecisionSoftDoctrineAuditBundle::class => ['all' => true],
+];
+```
+
+## How it works
+
+The library hooks into Doctrine's `onFlush` and `postFlush` events to capture entity changes automatically:
+
+1. **Entity detection** -- Mark entities for auditing with the `#[Auditable]` PHP attribute. Individual fields can be excluded with `#[Ignore]`.
+2. **Change capture** -- During Doctrine's flush cycle, the auditor inspects the Unit of Work to collect inserts, updates, and deletes. For updates, the full change set (old and new values) is recorded.
+3. **Storage** -- Captured changes are wrapped in a `StorageDto` and dispatched to one or more storage backends (Doctrine tables, JSONL files, or a custom service). Storages can be synchronous or asynchronous.
+4. **Transaction grouping** -- All changes within a single flush are grouped under one transaction record that includes the username (provided by a `TransactionProviderInterface` implementation) and a timestamp.
+
+## Configuration reference
+
+```yaml
+precision_soft_doctrine_audit:
+    storages:
+        # Doctrine storage -- writes audit rows into a dedicated database
+        <name>:
+            type: doctrine                     # required
+            entity_manager: <em_name>          # required -- the entity manager for the audit database
+            connection: <connection_name>       # optional -- defaults to the entity manager's connection
+            logger: <logger_service_id>        # optional
+            config:
+                transaction_table_name: 'audit_transaction'  # optional
+
+        # File storage -- appends JSONL entries to a file
+        <name>:
+            type: file                         # required
+            file: '%kernel.project_dir%/var/audit.log'  # required
+
+        # Custom storage -- delegates to your own StorageInterface implementation
+        <name>:
+            type: custom                       # required
+            service: App\Service\MyStorage     # required -- must implement StorageInterface
+
+    auditors:
+        <name>:
+            entity_manager: default            # the source entity manager to audit (default: 'default')
+            connection: <connection_name>       # optional -- defaults to the entity manager name
+            storages:                           # required -- list of storage names from above
+                - <storage_name>
+            synchronous_storages:              # optional -- subset of storages executed synchronously (defaults to all)
+                - <storage_name>
+            transaction_provider: App\Service\TransactionProvider  # required -- must implement TransactionProviderInterface
+            logger: <logger_service_id>        # optional
+            ignored_fields:                    # optional -- field names to globally ignore
+                - created
+                - modified
+```
+
+## Performance notes
+
+- The auditor reads entity metadata on first flush and caches it for subsequent flushes within the same request.
+- Each audited flush triggers one INSERT per transaction plus one INSERT per changed entity per storage. For high-throughput systems, consider using asynchronous storages (e.g., a RabbitMQ-backed custom storage) so that only the message publish happens synchronously.
+- The `ignored_fields` option (both global and per-entity via `#[Ignore]`) reduces the number of columns tracked and therefore the volume of audit data written.
+- File storage appends JSONL lines and does not open a database connection, making it the lightest option for development or low-volume environments.
+
 ## Usage
 
 ### Sample config and storage
@@ -55,7 +131,6 @@ precision_soft_doctrine_audit:
 ```
 
 ```yaml
-# services.yaml
 services:
     Acme\Shared\Service\AuditStorageService:
         arguments:
@@ -77,8 +152,6 @@ final class AuditTransactionProviderService implements TransactionProviderInterf
     public function getTransaction(): TransactionDto
     {
         $username = '~';
-
-        /* @todo implement application specific logic */
 
         return new TransactionDto($username);
     }
@@ -104,45 +177,44 @@ use Throwable;
 
 class AuditStorageService implements StorageInterface
 {
-    private SerializerInterface $serializer;
+    private SerializerInterface $serializerInterface;
     private Storage $storage;
-    private ProducerInterface $producer;
-    private LoggerInterface $logger;
+    private ProducerInterface $producerInterface;
+    private LoggerInterface $loggerInterface;
     private ThrowableHandlerService $throwableHandlerService;
 
     public function __construct(
-        SerializerInterface $serializer,
+        SerializerInterface $serializerInterface,
         Storage $storage,
-        ProducerInterface $auditProducer,
-        LoggerInterface $logger,
+        ProducerInterface $producerInterface,
+        LoggerInterface $loggerInterface,
         ThrowableHandlerService $throwableHandlerService
     ) {
-        $this->serializer = $serializer;
+        $this->serializerInterface = $serializerInterface;
         $this->storage = $storage;
-        $this->producer = $auditProducer;
-        $this->logger = $logger;
+        $this->producerInterface = $producerInterface;
+        $this->loggerInterface = $loggerInterface;
         $this->throwableHandlerService = $throwableHandlerService;
     }
 
     public function save(StorageDto $storageDto): void
     {
         try {
-            $message = $this->serializer->serialize($storageDto, JsonEncoder::FORMAT);
+            $serializedMessage = $this->serializerInterface->serialize($storageDto, JsonEncoder::FORMAT);
 
-            $this->producer->publish($message);
-        } catch (Throwable $t) {
-            $context = $this->throwableHandlerService->getContext($t);
-            /* @todo serialize by hand */
-            $context['dto'] = $message ?? 'could not serialize';
+            $this->producerInterface->publish($serializedMessage);
+        } catch (Throwable $throwable) {
+            $context = $this->throwableHandlerService->getContext($throwable);
+            $context['dto'] = $serializedMessage ?? 'could not serialize';
 
-            $this->logger->error($t->getMessage(), $context);
+            $this->loggerInterface->error($throwable->getMessage(), $context);
         }
     }
 
-    public function consume(AMQPMessage $message): void
+    public function consume(AMQPMessage $amqpMessage): void
     {
         /** @var StorageDto $storageDto */
-        $storageDto = $this->serializer->deserialize($message->getBody(), StorageDto::class, JsonEncoder::FORMAT);
+        $storageDto = $this->serializerInterface->deserialize($amqpMessage->getBody(), StorageDto::class, JsonEncoder::FORMAT);
 
         $this->storage->save($storageDto);
     }
@@ -162,15 +234,18 @@ This library will register two commands for each auditor with a **doctrine type 
 
 **`getOperation()` returns `Operation` enum instead of `string`**
 
+Before:
+
+```php
+$entity->getOperation() === 'delete'
+```
+
+After:
+
 ```php
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 
-/* before */
-$entity->getOperation() === 'delete'
-
-/* after */
 $entity->getOperation() === Operation::Delete
-/* or, if you need the string value */
 $entity->getOperation()->value === 'delete'
 ```
 

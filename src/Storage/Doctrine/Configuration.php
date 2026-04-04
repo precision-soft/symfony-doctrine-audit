@@ -17,7 +17,6 @@ final class Configuration
 
     public function __construct(array $config)
     {
-        /* @todo maybe validate keys */
         $this->transactionTableName = $config['transaction_table_name'] ?? 'audit_transaction';
         $this->transactionIdColumnName = $config['transaction_id_column_name'] ?? 'audit_transaction_id';
         $this->transactionIdColumnType = $config['transaction_id_column_type'] ?? 'integer';
