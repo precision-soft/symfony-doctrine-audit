@@ -337,6 +337,8 @@ final class AuditorTest extends TestCase
 
         $postFlushEventArgs = Mockery::mock(PostFlushEventArgs::class);
         $auditor->postFlush($postFlushEventArgs);
+
+        $this->addToAssertionCount(1);
     }
 
     public function testOnFlushWithExceptionLogsAndThrows(): void

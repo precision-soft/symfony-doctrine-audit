@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Audit\Service;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\Entity;
 use Doctrine\Persistence\Mapping\ClassMetadata;
+use Doctrine\Persistence\Proxy;
 use PrecisionSoft\Doctrine\Audit\Attribute\Auditable;
 use PrecisionSoft\Doctrine\Audit\Attribute\Ignore;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
@@ -27,10 +28,10 @@ class AnnotationReadService
     {
         $className = $entity::class;
 
-        $proxyString = '\\__CG__\\';
-        $proxyPosition = \mb_strrpos($className, $proxyString);
+        $proxyMarker = '\\' . Proxy::MARKER . '\\';
+        $proxyPosition = \mb_strrpos($className, $proxyMarker);
         if (false !== $proxyPosition) {
-            return \mb_substr($className, $proxyPosition + \strlen($proxyString));
+            return \mb_substr($className, $proxyPosition + \mb_strlen($proxyMarker));
         }
 
         return $className;
@@ -74,18 +75,18 @@ class AnnotationReadService
 
         $reflectionClass = $classMetadata->getReflectionClass() ?? new ReflectionClass($className);
 
-        if (false === $this->isEntity($reflectionClass)) {
+        if (false === $this->hasEntityAttribute($reflectionClass)) {
             return $this->entityDtoCache[$className] = null;
         }
 
-        if (false === $this->isAuditable($reflectionClass)) {
+        if (false === $this->hasAuditableAttribute($reflectionClass)) {
             return $this->entityDtoCache[$className] = null;
         }
 
         $ignoredFields = [];
 
         foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-            if (false === $this->isIgnored($reflectionProperty)) {
+            if (false === $this->hasIgnoreAttribute($reflectionProperty)) {
                 continue;
             }
 
@@ -102,7 +103,7 @@ class AnnotationReadService
         return $this->entityDtoCache[$className] = new EntityDto($className, $ignoredFields);
     }
 
-    private function isAuditable(ReflectionClass $reflectionClass): bool
+    private function hasAuditableAttribute(ReflectionClass $reflectionClass): bool
     {
         $attributes = $reflectionClass->getAttributes(Auditable::class);
         foreach ($attributes as $attribute) {
@@ -115,14 +116,14 @@ class AnnotationReadService
         return false;
     }
 
-    private function isEntity(ReflectionClass $reflectionClass): bool
+    private function hasEntityAttribute(ReflectionClass $reflectionClass): bool
     {
         $attributes = $reflectionClass->getAttributes(Entity::class);
 
         return false === empty($attributes);
     }
 
-    private function isIgnored(ReflectionProperty $reflectionProperty): bool
+    private function hasIgnoreAttribute(ReflectionProperty $reflectionProperty): bool
     {
         $attributes = $reflectionProperty->getAttributes(Ignore::class);
         foreach ($attributes as $attribute) {

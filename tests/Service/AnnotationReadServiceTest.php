@@ -45,25 +45,25 @@ final class AnnotationReadServiceTest extends AbstractTestCase
 
     public function testBuildEntityDtoReturnsNullForNonAuditableEntity(): void
     {
-        $mock = $this->get(AnnotationReadService::class);
+        $annotationReadService = $this->get(AnnotationReadService::class);
 
         $nonAuditableMetadata = new MappingClassMetadata(\stdClass::class);
 
-        $result = $mock->buildEntityDto($nonAuditableMetadata);
+        $entityDto = $annotationReadService->buildEntityDto($nonAuditableMetadata);
 
-        static::assertSame(null, $result);
+        static::assertSame(null, $entityDto);
     }
 
     public function testBuildEntityDtoCachesResult(): void
     {
-        $mock = $this->get(AnnotationReadService::class);
+        $annotationReadService = $this->get(AnnotationReadService::class);
 
         $classMetadata = new MappingClassMetadata(OneEntity::class);
 
-        $first = $mock->buildEntityDto($classMetadata);
-        $second = $mock->buildEntityDto($classMetadata);
+        $firstEntityDto = $annotationReadService->buildEntityDto($classMetadata);
+        $secondEntityDto = $annotationReadService->buildEntityDto($classMetadata);
 
-        static::assertSame($first, $second);
+        static::assertSame($firstEntityDto, $secondEntityDto);
     }
 
     public function testBuildEntityDto()
@@ -73,13 +73,13 @@ final class AnnotationReadServiceTest extends AbstractTestCase
             TwoEntity::class => ['id', 'description'],
         ];
 
-        /** @var AnnotationReadService|MockInterface $mock */
-        $mock = $this->get(AnnotationReadService::class);
+        /** @var AnnotationReadService|MockInterface $annotationReadService */
+        $annotationReadService = $this->get(AnnotationReadService::class);
 
         foreach ($entities as $entity => $ignoredFields) {
             $classMetadata = new MappingClassMetadata($entity);
 
-            $entityDto = $mock->buildEntityDto($classMetadata);
+            $entityDto = $annotationReadService->buildEntityDto($classMetadata);
 
             static::assertSame($entity, $entityDto->getClass());
             static::assertSame($ignoredFields, $entityDto->getIgnoredFields());
@@ -112,8 +112,8 @@ final class AnnotationReadServiceTest extends AbstractTestCase
             ->with('description')
             ->andReturn(false);
 
-        /** @var AnnotationReadService|MockInterface $mock */
-        $mock = $this->get(AnnotationReadService::class);
+        /** @var AnnotationReadService|MockInterface $annotationReadService */
+        $annotationReadService = $this->get(AnnotationReadService::class);
 
         $classMetadataFactoryMock = Mockery::mock(ClassMetadataFactory::class);
 
@@ -125,7 +125,7 @@ final class AnnotationReadServiceTest extends AbstractTestCase
             ->once()
             ->andReturn([$metadataOne, $metadataTwo]);
 
-        $entityDtos = $mock->read($entityManagerInterfaceMock);
+        $entityDtos = $annotationReadService->read($entityManagerInterfaceMock);
 
         static::assertIsArray($entityDtos);
 

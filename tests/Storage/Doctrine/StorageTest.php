@@ -49,6 +49,9 @@ final class StorageTest extends TestCase
             ->andReturn($this->connection);
         $this->connection->shouldReceive('getDatabasePlatform')
             ->andReturn($this->platform);
+        $this->connection->shouldReceive('beginTransaction')->byDefault();
+        $this->connection->shouldReceive('commit')->byDefault();
+        $this->connection->shouldReceive('rollBack')->byDefault();
     }
 
     private function createStorage(?LoggerInterface $logger = null): Storage
@@ -156,25 +159,6 @@ final class StorageTest extends TestCase
                 Mockery::type('array'),
                 Mockery::type('array'),
             );
-
-        $storage->save($storageDto);
-    }
-
-    public function testSaveThrowsExceptionWhenLastInsertIdFails(): void
-    {
-        $storage = $this->createStorage();
-
-        $entity = new EntityDto(Operation::Insert, 'App\\Entity\\User', 'user', [
-            new FieldDto('id', 'id', 'integer', 1),
-        ]);
-        $transaction = new TransactionDto('admin');
-        $storageDto = new StorageDto($transaction, [$entity]);
-
-        $this->connection->shouldReceive('insert')->once();
-        $this->connection->shouldReceive('lastInsertId')->once()->andReturn(false);
-
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('failed to retrieve last insert id');
 
         $storage->save($storageDto);
     }

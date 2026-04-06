@@ -10,18 +10,23 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Trait;
 
 use InvalidArgumentException;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 /**
  * @internal
  */
-final class ThrowTraitTest extends TestCase
+final class ThrowTraitTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(
+            LoggerInterface::class,
+        );
+    }
 
     private function createThrowableClass(?LoggerInterface $logger): object
     {
@@ -44,7 +49,7 @@ final class ThrowTraitTest extends TestCase
 
     public function testThrowWrapsExceptionInAuditException(): void
     {
-        $obj = $this->createThrowableClass(null);
+        $throwTraitUser = $this->createThrowableClass(null);
 
         $original = new RuntimeException('original message', 42);
 
@@ -52,13 +57,13 @@ final class ThrowTraitTest extends TestCase
         $this->expectExceptionMessage('original message');
         $this->expectExceptionCode(42);
 
-        $obj->doThrow($original);
+        $throwTraitUser->doThrow($original);
     }
 
     public function testThrowLogsErrorWhenLoggerPresent(): void
     {
         $logger = Mockery::mock(LoggerInterface::class);
-        $obj = $this->createThrowableClass($logger);
+        $throwTraitUser = $this->createThrowableClass($logger);
 
         $original = new RuntimeException('log me', 100);
 
@@ -79,17 +84,17 @@ final class ThrowTraitTest extends TestCase
 
         $this->expectException(Exception::class);
 
-        $obj->doThrow($original);
+        $throwTraitUser->doThrow($original);
     }
 
     public function testThrowDoesNotLogWhenLoggerIsNull(): void
     {
-        $obj = $this->createThrowableClass(null);
+        $throwTraitUser = $this->createThrowableClass(null);
 
         $original = new RuntimeException('no logging');
 
         try {
-            $obj->doThrow($original);
+            $throwTraitUser->doThrow($original);
         } catch (Exception $e) {
             static::assertSame('no logging', $e->getMessage());
             static::assertSame($original, $e->getPrevious());
@@ -103,7 +108,7 @@ final class ThrowTraitTest extends TestCase
     public function testThrowPassesLogContextMergedWithExceptionInfo(): void
     {
         $logger = Mockery::mock(LoggerInterface::class);
-        $obj = $this->createThrowableClass($logger);
+        $throwTraitUser = $this->createThrowableClass($logger);
 
         $original = new RuntimeException('context test');
 
@@ -122,17 +127,17 @@ final class ThrowTraitTest extends TestCase
 
         $this->expectException(Exception::class);
 
-        $obj->doThrow($original, ['sql' => 'SELECT 1']);
+        $throwTraitUser->doThrow($original, ['sql' => 'SELECT 1']);
     }
 
     public function testThrowPreservesOriginalExceptionAsPrevious(): void
     {
-        $obj = $this->createThrowableClass(null);
+        $throwTraitUser = $this->createThrowableClass(null);
 
         $original = new InvalidArgumentException('bad arg');
 
         try {
-            $obj->doThrow($original);
+            $throwTraitUser->doThrow($original);
         } catch (Exception $e) {
             static::assertSame($original, $e->getPrevious());
 

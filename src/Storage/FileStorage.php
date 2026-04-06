@@ -21,10 +21,16 @@ final class FileStorage implements StorageInterface
 {
     use ThrowTrait;
 
+    private readonly Filesystem $filesystem;
+    private readonly JsonEncoder $jsonEncoder;
+
     public function __construct(
         private readonly string $file,
         private readonly ?LoggerInterface $logger,
-    ) {}
+    ) {
+        $this->filesystem = new Filesystem();
+        $this->jsonEncoder = new JsonEncoder();
+    }
 
     private function getLogger(): ?LoggerInterface
     {
@@ -36,11 +42,9 @@ final class FileStorage implements StorageInterface
         try {
             $transaction = $this->buildTransaction($storageDto);
 
-            $filesystem = new Filesystem();
-
-            $filesystem->appendToFile($this->file, $transaction . \PHP_EOL);
-        } catch (Throwable $t) {
-            $this->throw($t);
+            $this->filesystem->appendToFile($this->file, $transaction . \PHP_EOL);
+        } catch (Throwable $throwable) {
+            $this->throw($throwable);
         }
     }
 
@@ -51,10 +55,10 @@ final class FileStorage implements StorageInterface
         foreach ($storageDto->getEntities() as $entityDto) {
             $columns = [];
 
-            foreach ($entityDto->getFields() as $columnDto) {
-                $columns[$columnDto->getName()] = true === $columnDto->hasOldValue()
-                    ? ['old' => $columnDto->getOldValue(), 'new' => $columnDto->getValue()]
-                    : $columnDto->getValue();
+            foreach ($entityDto->getFields() as $fieldDto) {
+                $columns[$fieldDto->getName()] = true === $fieldDto->hasOldValue()
+                    ? ['old' => $fieldDto->getOldValue(), 'new' => $fieldDto->getValue()]
+                    : $fieldDto->getValue();
             }
 
             $entities[] = [
@@ -76,6 +80,6 @@ final class FileStorage implements StorageInterface
             $transaction['extras'] = $transactionDto->getExtras();
         }
 
-        return (new JsonEncoder())->encode($transaction, JsonEncoder::FORMAT);
+        return $this->jsonEncoder->encode($transaction, JsonEncoder::FORMAT);
     }
 }

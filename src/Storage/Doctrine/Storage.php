@@ -41,10 +41,25 @@ final class Storage implements StorageInterface
             return;
         }
 
-        $transactionId = $this->getTransactionId($storageDto->getTransaction());
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
 
-        foreach ($storageDto->getEntities() as $entity) {
-            $this->saveEntity($transactionId, $entity);
+        try {
+            $transactionId = $this->getTransactionId($storageDto->getTransaction());
+
+            foreach ($storageDto->getEntities() as $entity) {
+                $this->saveEntity($transactionId, $entity);
+            }
+
+            $connection->commit();
+        } catch (Throwable $throwable) {
+            $connection->rollBack();
+
+            if (true === $throwable instanceof Exception) {
+                throw $throwable;
+            }
+
+            $this->throw($throwable);
         }
     }
 
@@ -64,12 +79,12 @@ final class Storage implements StorageInterface
             ],
         );
 
-        $lastId = $connection->lastInsertId();
-        if (false === $lastId || null === $lastId || '0' === $lastId || 0 === $lastId) {
+        $lastId = (int)$connection->lastInsertId();
+        if (0 >= $lastId) {
             throw new Exception('failed to retrieve last insert id');
         }
 
-        return (int)$lastId;
+        return $lastId;
     }
 
     private function saveEntity(int $transactionId, EntityDto $entityDto): void
@@ -102,8 +117,8 @@ final class Storage implements StorageInterface
 
         try {
             $connection->executeStatement($sql, $values, $types);
-        } catch (Throwable $t) {
-            $this->throw($t, ['sql' => $sql]);
+        } catch (Throwable $throwable) {
+            $this->throw($throwable, ['sql' => $sql]);
         }
     }
 }

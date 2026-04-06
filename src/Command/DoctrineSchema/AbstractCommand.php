@@ -43,10 +43,8 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
         ));
     }
 
-    protected function createSchemaTool(): SchemaTool
+    protected function createSchemaTool(array $sourceMetadatas): SchemaTool
     {
-        $sourceMetadatas = $this->getAuditedSourceMetadatas();
-
         foreach ($sourceMetadatas as $classMetadata) {
             $this->destinationEntityManager->getMetadataFactory()
                 ->setMetadataFor($classMetadata->getName(), $classMetadata);
@@ -74,28 +72,27 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
 
             $sourceMetadatas = $this->getAuditedSourceMetadatas();
 
-            $schemaTool = $this->createSchemaTool();
+            $schemaTool = $this->createSchemaTool($sourceMetadatas);
 
             $this->writeln('the following sql statements will be executed');
 
-            $sqls = $this->getSchemaSql($schemaTool, $sourceMetadatas);
+            $sqlStatements = $this->getSchemaSql($schemaTool, $sourceMetadatas);
 
-            foreach ($sqls as $sql) {
+            foreach ($sqlStatements as $sql) {
                 $this->style->writeln(\sprintf('    %s;', $sql));
             }
 
             $this->writeln('----------------------------------------------------------------------');
 
-            $force = true === $input->getOption(self::FORCE);
-            if (true === $force) {
+            if (true === $input->getOption(self::FORCE)) {
                 $this->writeln(\sprintf('%s database schema', $this->getActionVerb()));
 
                 $this->executeSchema($schemaTool, $sourceMetadatas);
 
                 $this->success(\sprintf('database schema %s successfully', $this->getCompletedVerb()));
             }
-        } catch (Throwable $t) {
-            $this->error($t->getMessage(), $t, true);
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage(), $throwable, true);
 
             return self::FAILURE;
         }

@@ -16,22 +16,22 @@ trait ThrowTrait
 {
     abstract private function getLogger(): ?LoggerInterface;
 
-    private function throw(Throwable $t, array $logContext = []): void
+    private function throw(Throwable $throwable, array $logContext = []): void
     {
         $logger = $this->getLogger();
 
         if (null !== $logger) {
             $logger->error(
-                __CLASS__ . ': ' . $t->getMessage(),
+                __CLASS__ . ': ' . $throwable->getMessage(),
                 $logContext + [
-                    'code' => $t->getCode(),
-                    'file' => $t->getFile(),
-                    'line' => $t->getLine(),
-                    'trace' => $t->getTraceAsString(),
+                    'code' => $throwable->getCode(),
+                    'file' => $throwable->getFile(),
+                    'line' => $throwable->getLine(),
+                    'trace' => $throwable->getTraceAsString(),
                 ],
             );
         }
 
-        throw new Exception($t->getMessage(), $t->getCode(), $t);
+        throw new Exception($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
     }
 }

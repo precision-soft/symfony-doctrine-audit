@@ -50,9 +50,9 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
     private function defineStorages(ContainerBuilder $containerBuilder, array $storages): void
     {
         foreach ($storages as $storageName => $storage) {
-            $type = $storage['type'];
+            $storageType = $storage['type'];
 
-            switch ($type) {
+            switch ($storageType) {
                 case Configuration::TYPE_DOCTRINE:
                     $this->defineStorageDoctrine($containerBuilder, $storage, $storageName);
                     break;
@@ -63,7 +63,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
                     $this->defineStorageCustom($containerBuilder, $storage, $storageName);
                     break;
                 default:
-                    throw new Exception(\sprintf('invalid storage type `%s`', $type));
+                    throw new Exception(\sprintf('invalid storage type `%s`', $storageType));
             }
         }
     }
@@ -73,12 +73,12 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         array $storage,
         string $storageName,
     ): void {
-        $type = $storage['type'];
+        $storageType = $storage['type'];
         [$entityManager] = $this->getEntityManagerAndConnection($storage);
 
         if (true === empty($entityManager)) {
             throw new Exception(
-                \sprintf('the `%s` config is mandatory for storage type `%s`', 'entity_manager', $type),
+                \sprintf('the `%s` config is mandatory for storage type `%s`', 'entity_manager', $storageType),
             );
         }
 
@@ -122,12 +122,12 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         array $storage,
         string $storageName,
     ): void {
-        $type = $storage['type'];
+        $storageType = $storage['type'];
         $file = $storage['file'] ?? null;
 
         if (true === empty($file)) {
             throw new Exception(
-                \sprintf('the `%s` config is mandatory for storage type `%s`', 'file', $type),
+                \sprintf('the `%s` config is mandatory for storage type `%s`', 'file', $storageType),
             );
         }
 
@@ -151,12 +151,12 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         array $storage,
         string $storageName,
     ): void {
-        $type = $storage['type'];
+        $storageType = $storage['type'];
         $service = $storage['service'] ?? null;
 
         if (true === empty($service)) {
             throw new Exception(
-                \sprintf('the `%s` config is mandatory for storage type `%s`', 'service', $type),
+                \sprintf('the `%s` config is mandatory for storage type `%s`', 'service', $storageType),
             );
         }
 
@@ -265,7 +265,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
             $definition = new Definition(
                 $commandClass,
                 [
-                    \sprintf('%s:schema:%s:%s', static::BASE_COMMAND_NAME, $commandName, $auditorName),
+                    \sprintf('%s:schema:%s:%s', self::BASE_COMMAND_NAME, $commandName, $auditorName),
                     $auditorEntityManagerReference,
                     $storageEntityManagerReference,
                     new Reference(AnnotationReadService::class),
@@ -304,27 +304,27 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
 
     private function getStorageId(string $name): string
     {
-        return \sprintf('%s.storage.%s', static::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.storage.%s', self::BASE_SERVICE_ID, $name);
     }
 
     private function getStorageConfigId(string $name): string
     {
-        return \sprintf('%s.storage.%s.config', static::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.storage.%s.config', self::BASE_SERVICE_ID, $name);
     }
 
     private function getAuditorId(string $name): string
     {
-        return \sprintf('%s.auditor.%s', static::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.auditor.%s', self::BASE_SERVICE_ID, $name);
     }
 
     private function getAuditorConfigId(string $name): string
     {
-        return \sprintf('%s.auditor.%s.config', static::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.auditor.%s.config', self::BASE_SERVICE_ID, $name);
     }
 
     private function getCommandId(string $name): string
     {
-        return \sprintf('%s.command.%s', static::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.command.%s', self::BASE_SERVICE_ID, $name);
     }
 
     private function getEntityManager(string $name): Reference

@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## v3.1.1 - 2026-04-06
+
+### Fixed
+
+- `Auditor` — replace `isset($changeSet[$field])` with `\array_key_exists()` to correctly track nullable field changes from `null` (`isset()` returns `false` for `null` values, causing audit trail data loss)
+- `Auditor::postFlush()` — `gc_collect_cycles()` no longer runs on early-return path when no audit work was done
+- `AbstractCommand::createSchemaTool()` — accept `$sourceMetadatas` as parameter to avoid duplicate `getAuditedSourceMetadatas()` call
+- `Configuration` — remove `isRequired()` from `synchronous_storages` node (defaults via `beforeNormalization`)
+
+### Changed
+
+- `Storage::save()` — wrap in DBAL transaction with `beginTransaction()`/`commit()`/`rollBack()`
+- `Storage::saveTransaction()` — `lastInsertId()` cast to `int` with `0 >= $lastId` check
+- `DoctrineSchemaListener` — fix `$entityTable` to `$table` variable reference, Yoda comparison style, rename `$t` to `$throwable`
+- `ThrowTrait` — rename `$t` to `$throwable`, cast error code to `(int)` in exception constructor
+- `AnnotationReadService::getEntityClass()` — replace hardcoded `__CG__` proxy string with `Doctrine\Persistence\Proxy::MARKER`
+- `FileStorage` — `Filesystem` and `JsonEncoder` are now class properties instead of per-call instances
+- `AuditOperationType` class marked `final`
+- `PrecisionSoftDoctrineAuditBundle` class marked `final`
+- `Exception` class marked `final`
+- `PrecisionSoftDoctrineAuditExtension` — `static::` replaced with `self::` for constants in `final` class
+- `DoctrineSchemaListener::updateType()` — replace duplicate switch cases with single `if` condition for `AbstractEnumType`/`AbstractSetType`
+- `.dev/docker/entrypoint.sh` — skip `composer install` when `composer.lock` hash matches cached vendor
+- Variable naming compliance: `$sqls` -> `$sqlStatements`, `$diff` -> `$missingStorages`, `$data` -> `$originalEntityData`/`$associationData`, `$type` -> `$storageType`/`$fieldType`, `$value` -> `$relatedFieldValue`/`$fieldValue`, `$obj` -> `$throwTraitUser`, `$mock` -> `$annotationReadService`, `$result`/`$first`/`$second` -> descriptive names in tests
+- Update `phpstan-baseline.neon`
+
 ## v3.1.0
 
 ### Breaking changes

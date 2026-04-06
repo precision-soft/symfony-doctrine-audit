@@ -21,10 +21,10 @@ final class ConfigurationTest extends TestCase
         $fields = ['password', 'salt'];
         $configuration = new Configuration($fields);
 
-        $result = $configuration->getIgnoredFields();
+        $ignoredFields = $configuration->getIgnoredFields();
 
-        static::assertIsArray($result);
-        static::assertSame($fields, $result);
+        static::assertIsArray($ignoredFields);
+        static::assertSame($fields, $ignoredFields);
     }
 
     public function testGetIgnoredFieldsEmptyArray(): void
@@ -55,9 +55,9 @@ final class ConfigurationTest extends TestCase
         $fields = ['password'];
         $configuration = new Configuration($fields);
 
-        $first = $configuration->getIgnoredFields();
-        $second = $configuration->getIgnoredFields();
+        $firstIgnoredFields = $configuration->getIgnoredFields();
+        $secondIgnoredFields = $configuration->getIgnoredFields();
 
-        static::assertSame($first, $second);
+        static::assertSame($firstIgnoredFields, $secondIgnoredFields);
     }
 }

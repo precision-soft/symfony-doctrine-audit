@@ -47,13 +47,13 @@ final class DoctrineSchemaListener
 
                 $table = $schema->getTable($entityTable->getName());
 
-                foreach ($entityTable->getColumns() as $column) {
+                foreach ($table->getColumns() as $column) {
                     $columnName = $column->getName();
 
                     $field = null;
                     foreach ($classMetadata->fieldMappings as $fieldName => $mapping) {
                         $mappedColumnName = true === \is_object($mapping) ? $mapping->columnName : ($mapping['columnName'] ?? null);
-                        if ($mappedColumnName === $columnName) {
+                        if ($columnName === $mappedColumnName) {
                             $field = $fieldName;
                             break;
                         }
@@ -74,7 +74,7 @@ final class DoctrineSchemaListener
                     $this->updateType($column);
                 }
 
-                if (true === empty($entityTable->getColumns())) {
+                if (true === empty($table->getColumns())) {
                     return;
                 }
 
@@ -117,11 +117,11 @@ final class DoctrineSchemaListener
                     $schema->dropTable($entityTable->getName());
                 }
             }
-        } catch (Throwable $t) {
+        } catch (Throwable $throwable) {
             throw new Exception(
-                \sprintf('`%s` => `%s`', $entityTable->getName(), $t->getMessage()),
-                $t->getCode(),
-                $t,
+                \sprintf('`%s` => `%s`', $entityTable->getName(), $throwable->getMessage()),
+                $throwable->getCode(),
+                $throwable,
             );
         }
     }
@@ -149,7 +149,7 @@ final class DoctrineSchemaListener
             $transactionTable->setPrimaryKey(['id']);
 
             foreach ($schema->getTables() as $table) {
-                if ($table->getName() === $this->storageConfiguration->getTransactionTableName()) {
+                if ($this->storageConfiguration->getTransactionTableName() === $table->getName()) {
                     continue;
                 }
 
@@ -160,11 +160,11 @@ final class DoctrineSchemaListener
                     ['onDelete' => 'RESTRICT'],
                 );
             }
-        } catch (Throwable $t) {
+        } catch (Throwable $throwable) {
             throw new Exception(
-                \sprintf('`%s` => `%s`', $this->storageConfiguration->getTransactionTableName(), $t->getMessage()),
-                $t->getCode(),
-                $t,
+                \sprintf('`%s` => `%s`', $this->storageConfiguration->getTransactionTableName(), $throwable->getMessage()),
+                $throwable->getCode(),
+                $throwable,
             );
         }
     }
@@ -173,15 +173,8 @@ final class DoctrineSchemaListener
     {
         $columnType = $column->getType();
 
-        switch (true) {
-            case $columnType instanceof AbstractEnumType:
-                $column->setType(Type::getType(Types::STRING))->setLength(255);
-                break;
-            case $columnType instanceof AbstractSetType:
-                $column->setType(Type::getType(Types::STRING))->setLength(255);
-                break;
-            default:
-                break;
+        if ($columnType instanceof AbstractEnumType || $columnType instanceof AbstractSetType) {
+            $column->setType(Type::getType(Types::STRING))->setLength(255);
         }
     }
 }

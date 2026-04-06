@@ -42,7 +42,7 @@ final class Configuration implements ConfigurationInterface
             ->useAttributeAsKey('name')
             ->arrayPrototype();
 
-        $types = [static::TYPE_DOCTRINE, static::TYPE_FILE, static::TYPE_CUSTOM];
+        $types = [self::TYPE_DOCTRINE, self::TYPE_FILE, self::TYPE_CUSTOM];
 
         $storages->children()
             ->scalarNode('name')->end()
@@ -68,12 +68,12 @@ final class Configuration implements ConfigurationInterface
             function (array $auditor) {
                 $auditor['synchronous_storages'] ??= $auditor['storages'];
 
-                $diff = \array_diff($auditor['synchronous_storages'], $auditor['storages']);
-                if (false === empty($diff)) {
+                $missingStorages = \array_diff($auditor['synchronous_storages'], $auditor['storages']);
+                if (false === empty($missingStorages)) {
                     throw new Exception(
                         \sprintf(
                             'the synchronous storages `%s` were not found in the storages list `%s`',
-                            \implode(', ', $diff),
+                            \implode(', ', $missingStorages),
                             \implode(', ', $auditor['storages']),
                         ),
                     );
@@ -90,7 +90,7 @@ final class Configuration implements ConfigurationInterface
             /** @info the complete list of storage used by the auditor */
             ->arrayNode('storages')->isRequired()->cannotBeEmpty()->scalarPrototype()->end()->end()
             /** @info a part of the storages list that are used on Auditor::save */
-            ->arrayNode('synchronous_storages')->cannotBeEmpty()->isRequired()->scalarPrototype()->end()->end()
+            ->arrayNode('synchronous_storages')->cannotBeEmpty()->scalarPrototype()->end()->end()
             ->scalarNode('transaction_provider')->isRequired()->end()
             ->scalarNode('logger')->end()
             ->arrayNode('ignored_fields')->scalarPrototype()->end()->end();

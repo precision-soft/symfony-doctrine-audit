@@ -10,4 +10,4 @@ namespace PrecisionSoft\Doctrine\Audit\Exception;
 
 use Exception as BaseException;
 
-class Exception extends BaseException {}
+final class Exception extends BaseException {}

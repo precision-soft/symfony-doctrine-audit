@@ -76,8 +76,8 @@ final class Auditor
             $this->auditorDto = new AuditorDto($entitiesToDelete, $entitiesToInsert, $entitiesToUpdate, $changeSets);
 
             $this->createAuditEntities($entitiesToDelete, Operation::Delete);
-        } catch (Throwable $t) {
-            $this->throw($t);
+        } catch (Throwable $throwable) {
+            $this->throw($throwable);
         }
     }
 
@@ -101,12 +101,11 @@ final class Auditor
             $storageDto = $this->createStorageDto();
 
             $this->save($storageDto);
-        } catch (Throwable $t) {
-            $this->throw($t);
+            \gc_collect_cycles();
+        } catch (Throwable $throwable) {
+            $this->throw($throwable);
         } finally {
             $this->auditorDto = null;
-
-            \gc_collect_cycles();
         }
     }
 
@@ -172,11 +171,11 @@ final class Auditor
                 continue;
             }
 
-            $data = $entityData[$field] ?? null;
+            $associationData = $entityData[$field] ?? null;
             $relatedId = null;
 
-            if (null !== $data && true === $unitOfWork->isInIdentityMap($data)) {
-                $relatedId = $unitOfWork->getEntityIdentifier($data);
+            if (null !== $associationData && true === $unitOfWork->isInIdentityMap($associationData)) {
+                $relatedId = $unitOfWork->getEntityIdentifier($associationData);
             }
 
             $targetClassMetadata = $this->entityManager->getClassMetadata($association['targetEntity']);
@@ -185,12 +184,12 @@ final class Auditor
                 $sourceColumn = $joinColumn['name'];
 
                 $targetFieldName = $targetClassMetadata->getFieldName($joinColumn['referencedColumnName']);
-                $type = $targetClassMetadata->getTypeOfField($targetFieldName);
+                $fieldType = $targetClassMetadata->getTypeOfField($targetFieldName);
 
-                $value = true === isset($relatedId) ? $relatedId[$targetFieldName] ?? null : null;
+                $relatedFieldValue = $relatedId[$targetFieldName] ?? null;
 
                 $auditorEntityDto->addField(
-                    new FieldDto($field, $sourceColumn, $type, $value),
+                    new FieldDto($field, $sourceColumn, $fieldType, $relatedFieldValue),
                 );
             }
         }
@@ -203,13 +202,13 @@ final class Auditor
             $columnName = $this->getColumnName($field, $classMetadata);
 
             $fieldMapping = $classMetadata->getFieldMapping($field);
-            $type = $fieldMapping['type'];
-            $value = $entityData[$field] ?? null;
-            $hasOldValue = isset($changeSet[$field]);
+            $fieldType = $fieldMapping['type'];
+            $fieldValue = $entityData[$field] ?? null;
+            $hasOldValue = true === \array_key_exists($field, $changeSet ?? []);
             $oldValue = true === $hasOldValue ? $changeSet[$field][0] : null;
 
             $auditorEntityDto->addField(
-                new FieldDto($field, $columnName, $type, $value, $oldValue, $hasOldValue),
+                new FieldDto($field, $columnName, $fieldType, $fieldValue, $oldValue, $hasOldValue),
             );
         }
 
@@ -273,14 +272,14 @@ final class Auditor
     private function getOriginalEntityData(object $entity): array
     {
         $classMetadata = $this->entityManager->getClassMetadata($entity::class);
-        $data = $this->entityManager->getUnitOfWork()->getOriginalEntityData($entity);
+        $originalEntityData = $this->entityManager->getUnitOfWork()->getOriginalEntityData($entity);
 
-        if (true === $classMetadata->isVersioned) {
+        if (true === $classMetadata->isVersioned && null !== $classMetadata->versionField) {
             $versionField = $classMetadata->versionField;
-            $data[$versionField] = $classMetadata->reflFields[$versionField]->getValue($entity);
+            $originalEntityData[$versionField] = $classMetadata->reflFields[$versionField]->getValue($entity);
         }
 
-        return $data;
+        return $originalEntityData;
     }
 
     private function createStorageDto(): StorageDto
@@ -337,7 +336,7 @@ final class Auditor
                 continue;
             }
 
-            if (false === $this->isAudited(AnnotationReadService::getEntityClass($entity))) {
+            if (false === $this->hasAuditedEntity(AnnotationReadService::getEntityClass($entity))) {
                 continue;
             }
 
@@ -347,7 +346,7 @@ final class Auditor
         return \array_values($entities);
     }
 
-    private function isAudited(string $entityClass): bool
+    private function hasAuditedEntity(string $entityClass): bool
     {
         return true === isset($this->auditedEntities[$entityClass]);
     }

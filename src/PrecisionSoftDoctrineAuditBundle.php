@@ -12,7 +12,7 @@ use Doctrine\DBAL\Types\Type;
 use PrecisionSoft\Doctrine\Audit\Type\AuditOperationType;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
-class PrecisionSoftDoctrineAuditBundle extends Bundle
+final class PrecisionSoftDoctrineAuditBundle extends Bundle
 {
     public function boot(): void
     {
