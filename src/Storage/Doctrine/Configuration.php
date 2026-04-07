@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Storage\Doctrine;
 
-final class Configuration
+class Configuration
 {
     private string $transactionTableName;
     private string $transactionIdColumnName;

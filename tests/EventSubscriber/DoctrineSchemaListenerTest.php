@@ -21,9 +21,9 @@ use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration as AuditorConfiguration;
+use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Doctrine\Audit\EventSubscriber\DoctrineSchemaListener;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
-use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration as StorageConfiguration;
 use RuntimeException;
 use stdClass;
@@ -35,13 +35,13 @@ final class DoctrineSchemaListenerTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
 
-    private AnnotationReadService|MockInterface $annotationReadService;
+    private AnnotationReadServiceInterface|MockInterface $annotationReadService;
     private AuditorConfiguration $auditorConfiguration;
     private StorageConfiguration $storageConfiguration;
 
     protected function setUp(): void
     {
-        $this->annotationReadService = Mockery::mock(AnnotationReadService::class);
+        $this->annotationReadService = Mockery::mock(AnnotationReadServiceInterface::class);
         $this->auditorConfiguration = new AuditorConfiguration([]);
         $this->storageConfiguration = new StorageConfiguration([]);
     }

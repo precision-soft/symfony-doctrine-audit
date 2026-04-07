@@ -92,7 +92,7 @@ final class AuditorDtoTest extends TestCase
         $entity = new stdClass();
         $auditorDto = new AuditorDto([], [], []);
 
-        static::assertSame(null, $auditorDto->getEntityChangeSet($entity));
+        static::assertNull($auditorDto->getEntityChangeSet($entity));
     }
 
     public function testConstructorWithEmptyChangeSets(): void
@@ -100,6 +100,6 @@ final class AuditorDtoTest extends TestCase
         $auditorDto = new AuditorDto([], [], []);
 
         $entity = new stdClass();
-        static::assertSame(null, $auditorDto->getEntityChangeSet($entity));
+        static::assertNull($auditorDto->getEntityChangeSet($entity));
     }
 }

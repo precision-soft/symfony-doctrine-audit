@@ -13,73 +13,65 @@ use Doctrine\ORM\Mapping\ClassMetadata as MappingClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
-use Mockery\MockInterface;
+use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
+use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\TwoEntity;
-use PrecisionSoft\Symfony\Phpunit\MockDto;
-use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use ReflectionClass;
 
 /**
  * @internal
  */
-final class AnnotationReadServiceTest extends AbstractTestCase
+final class AnnotationReadServiceTest extends TestCase
 {
-    public static function getMockDto(): MockDto
+    use MockeryPHPUnitIntegration;
+
+    private AnnotationReadService $annotationReadService;
+
+    protected function setUp(): void
     {
-        return new MockDto(
-            AnnotationReadService::class,
-            [],
-            true,
-        );
+        $this->annotationReadService = new AnnotationReadService();
     }
 
     public function testGetEntityClassReturnsClassName(): void
     {
         $entity = new OneEntity();
 
-        static::assertSame(OneEntity::class, AnnotationReadService::getEntityClass($entity));
+        static::assertSame(OneEntity::class, $this->annotationReadService->getEntityClass($entity));
     }
 
     public function testBuildEntityDtoReturnsNullForNonAuditableEntity(): void
     {
-        $annotationReadService = $this->get(AnnotationReadService::class);
-
         $nonAuditableMetadata = new MappingClassMetadata(\stdClass::class);
 
-        $entityDto = $annotationReadService->buildEntityDto($nonAuditableMetadata);
+        $entityDto = $this->annotationReadService->buildEntityDto($nonAuditableMetadata);
 
         static::assertSame(null, $entityDto);
     }
 
     public function testBuildEntityDtoCachesResult(): void
     {
-        $annotationReadService = $this->get(AnnotationReadService::class);
-
         $classMetadata = new MappingClassMetadata(OneEntity::class);
 
-        $firstEntityDto = $annotationReadService->buildEntityDto($classMetadata);
-        $secondEntityDto = $annotationReadService->buildEntityDto($classMetadata);
+        $firstEntityDto = $this->annotationReadService->buildEntityDto($classMetadata);
+        $secondEntityDto = $this->annotationReadService->buildEntityDto($classMetadata);
 
         static::assertSame($firstEntityDto, $secondEntityDto);
     }
 
-    public function testBuildEntityDto()
+    public function testBuildEntityDto(): void
     {
         $entities = [
             OneEntity::class => [],
             TwoEntity::class => ['id', 'description'],
         ];
 
-        /** @var AnnotationReadService|MockInterface $annotationReadService */
-        $annotationReadService = $this->get(AnnotationReadService::class);
-
         foreach ($entities as $entity => $ignoredFields) {
             $classMetadata = new MappingClassMetadata($entity);
 
-            $entityDto = $annotationReadService->buildEntityDto($classMetadata);
+            $entityDto = $this->annotationReadService->buildEntityDto($classMetadata);
 
             static::assertSame($entity, $entityDto->getClass());
             static::assertSame($ignoredFields, $entityDto->getIgnoredFields());
@@ -112,9 +104,6 @@ final class AnnotationReadServiceTest extends AbstractTestCase
             ->with('description')
             ->andReturn(false);
 
-        /** @var AnnotationReadService|MockInterface $annotationReadService */
-        $annotationReadService = $this->get(AnnotationReadService::class);
-
         $classMetadataFactoryMock = Mockery::mock(ClassMetadataFactory::class);
 
         $entityManagerInterfaceMock = Mockery::mock(EntityManagerInterface::class);
@@ -125,7 +114,7 @@ final class AnnotationReadServiceTest extends AbstractTestCase
             ->once()
             ->andReturn([$metadataOne, $metadataTwo]);
 
-        $entityDtos = $annotationReadService->read($entityManagerInterfaceMock);
+        $entityDtos = $this->annotationReadService->read($entityManagerInterfaceMock);
 
         static::assertIsArray($entityDtos);
 

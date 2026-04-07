@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Dto\Storage;
 
 final class StorageDto
 {
+    /** @param EntityDto[] $entities */
     public function __construct(
         private readonly TransactionDto $transaction,
         private readonly array $entities,

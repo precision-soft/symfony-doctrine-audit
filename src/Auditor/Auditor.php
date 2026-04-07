@@ -12,6 +12,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\TransactionProviderInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto as AnnotationEntityDto;
@@ -21,12 +22,11 @@ use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto as StorageEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
-use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-final class Auditor
+class Auditor
 {
     use ThrowTrait;
 
@@ -40,15 +40,10 @@ final class Auditor
         private readonly array $storages,
         private readonly TransactionProviderInterface $transactionProvider,
         private readonly ?LoggerInterface $logger,
-        private readonly AnnotationReadService $annotationReadService,
+        private readonly AnnotationReadServiceInterface $annotationReadService,
     ) {
         $this->auditedEntities = null;
         $this->auditorDto = null;
-    }
-
-    private function getLogger(): ?LoggerInterface
-    {
-        return $this->logger;
     }
 
     public function onFlush(OnFlushEventArgs $eventArgs): void
@@ -132,7 +127,7 @@ final class Auditor
                 : null;
 
             $entityDtos = $this->createAuditorEntityDtos(
-                $this->entityManager->getClassMetadata($entity::class),
+                $this->entityManager->getClassMetadata($this->annotationReadService->getEntityClass($entity)),
                 $entityData,
                 $operation,
                 $changeSet,
@@ -202,7 +197,7 @@ final class Auditor
             $columnName = $this->getColumnName($field, $classMetadata);
 
             $fieldMapping = $classMetadata->getFieldMapping($field);
-            $fieldType = $fieldMapping['type'];
+            $fieldType = $fieldMapping->type;
             $fieldValue = $entityData[$field] ?? null;
             $hasOldValue = true === \array_key_exists($field, $changeSet ?? []);
             $oldValue = true === $hasOldValue ? $changeSet[$field][0] : null;
@@ -271,7 +266,7 @@ final class Auditor
 
     private function getOriginalEntityData(object $entity): array
     {
-        $classMetadata = $this->entityManager->getClassMetadata($entity::class);
+        $classMetadata = $this->entityManager->getClassMetadata($this->annotationReadService->getEntityClass($entity));
         $originalEntityData = $this->entityManager->getUnitOfWork()->getOriginalEntityData($entity);
 
         if (true === $classMetadata->isVersioned && null !== $classMetadata->versionField) {
@@ -286,43 +281,42 @@ final class Auditor
     {
         $transaction = $this->transactionProvider->getTransaction();
 
-        $entities = \array_map(
-            function (AuditorEntityDto $entityDto): ?StorageEntityDto {
-                $fields = [];
-                if (false === isset($this->auditedEntities[$entityDto->getClass()])) {
-                    return null;
+        $entities = [];
+
+        foreach ($this->auditorDto->getAuditEntities() as $entityDto) {
+            if (false === isset($this->auditedEntities[$entityDto->getClass()])) {
+                continue;
+            }
+
+            /** @var AnnotationEntityDto $annotationEntityDto */
+            $annotationEntityDto = $this->auditedEntities[$entityDto->getClass()];
+
+            $fields = [];
+            foreach ($entityDto->getFields() as $fieldDto) {
+                if (true === \in_array($fieldDto->getName(), $annotationEntityDto->getIgnoredFields(), true)) {
+                    continue;
                 }
 
-                /** @var AnnotationEntityDto $annotationEntityDto */
-                $annotationEntityDto = $this->auditedEntities[$entityDto->getClass()];
-
-                foreach ($entityDto->getFields() as $fieldDto) {
-                    if (\in_array($fieldDto->getName(), $annotationEntityDto->getIgnoredFields(), true)) {
-                        continue;
-                    }
-
-                    if (\in_array($fieldDto->getName(), $this->configuration->getIgnoredFields(), true)) {
-                        continue;
-                    }
-
-                    $fields[] = $fieldDto;
+                if (true === \in_array($fieldDto->getName(), $this->configuration->getIgnoredFields(), true)) {
+                    continue;
                 }
 
-                if (true === empty($fields)) {
-                    return null;
-                }
+                $fields[] = $fieldDto;
+            }
 
-                return new StorageEntityDto(
-                    $entityDto->getOperation(),
-                    $entityDto->getClass(),
-                    $entityDto->getTableName(),
-                    $fields,
-                );
-            },
-            $this->auditorDto->getAuditEntities(),
-        );
+            if ([] === $fields) {
+                continue;
+            }
 
-        return new StorageDto($transaction, \array_filter($entities));
+            $entities[] = new StorageEntityDto(
+                $entityDto->getOperation(),
+                $entityDto->getClass(),
+                $entityDto->getTableName(),
+                $fields,
+            );
+        }
+
+        return new StorageDto($transaction, $entities);
     }
 
     private function filterAuditedEntities(array $allEntities): array
@@ -336,7 +330,7 @@ final class Auditor
                 continue;
             }
 
-            if (false === $this->hasAuditedEntity(AnnotationReadService::getEntityClass($entity))) {
+            if (false === $this->hasAuditedEntity($this->annotationReadService->getEntityClass($entity))) {
                 continue;
             }
 
@@ -349,5 +343,10 @@ final class Auditor
     private function hasAuditedEntity(string $entityClass): bool
     {
         return true === isset($this->auditedEntities[$entityClass]);
+    }
+
+    private function getLogger(): ?LoggerInterface
+    {
+        return $this->logger;
     }
 }

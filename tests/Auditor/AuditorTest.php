@@ -23,13 +23,13 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Auditor\Auditor;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration;
+use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\TransactionProviderInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto as AnnotationEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
-use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
@@ -46,7 +46,7 @@ final class AuditorTest extends TestCase
     private StorageInterface|MockInterface $storage;
     private TransactionProviderInterface|MockInterface $transactionProvider;
     private LoggerInterface|MockInterface $logger;
-    private AnnotationReadService|MockInterface $annotationReadService;
+    private AnnotationReadServiceInterface|MockInterface $annotationReadService;
     private UnitOfWork|MockInterface $unitOfWork;
 
     protected function setUp(): void
@@ -56,11 +56,14 @@ final class AuditorTest extends TestCase
         $this->storage = Mockery::mock(StorageInterface::class);
         $this->transactionProvider = Mockery::mock(TransactionProviderInterface::class);
         $this->logger = Mockery::mock(LoggerInterface::class);
-        $this->annotationReadService = Mockery::mock(AnnotationReadService::class);
+        $this->annotationReadService = Mockery::mock(AnnotationReadServiceInterface::class);
         $this->unitOfWork = Mockery::mock(UnitOfWork::class);
 
         $this->entityManager->shouldReceive('getUnitOfWork')
             ->andReturn($this->unitOfWork);
+
+        $this->annotationReadService->shouldReceive('getEntityClass')
+            ->andReturnUsing(static fn(object $entityOrProxy): string => $entityOrProxy::class);
     }
 
     private const NO_LOGGER_SENTINEL = '__NO_LOGGER__';

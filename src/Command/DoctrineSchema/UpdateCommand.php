@@ -10,7 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema;
 
 use Doctrine\ORM\Tools\SchemaTool;
 
-final class UpdateCommand extends AbstractCommand
+class UpdateCommand extends AbstractCommand
 {
     protected function configure(): void
     {

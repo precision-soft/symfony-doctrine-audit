@@ -20,7 +20,7 @@ use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-final class Storage implements StorageInterface
+class Storage implements StorageInterface
 {
     use ThrowTrait;
 
@@ -79,12 +79,12 @@ final class Storage implements StorageInterface
             ],
         );
 
-        $lastId = (int)$connection->lastInsertId();
-        if (0 >= $lastId) {
+        $lastInsertId = (int)$connection->lastInsertId();
+        if (0 >= $lastInsertId) {
             throw new Exception('failed to retrieve last insert id');
         }
 
-        return $lastId;
+        return $lastInsertId;
     }
 
     private function saveEntity(int $transactionId, EntityDto $entityDto): void
@@ -96,10 +96,10 @@ final class Storage implements StorageInterface
         $values = [$transactionId, $entityDto->getOperation()->value];
         $types = [$this->configuration->getTransactionIdColumnType(), Types::STRING];
 
-        foreach ($entityDto->getFields() as $columnDto) {
-            $columns[] = $columnDto->getColumnName();
-            $values[] = $columnDto->getValue();
-            $types[] = $columnDto->getType();
+        foreach ($entityDto->getFields() as $fieldDto) {
+            $columns[] = $fieldDto->getColumnName();
+            $values[] = $fieldDto->getValue();
+            $types[] = $fieldDto->getType();
         }
 
         $connection = $this->entityManager->getConnection();
@@ -108,7 +108,7 @@ final class Storage implements StorageInterface
         $quotedTable = $platform->quoteIdentifier($entityDto->getTableName());
         $quotedColumns = \array_map(fn($columnName) => $platform->quoteIdentifier($columnName), $columns);
 
-        $sql = \sprintf(
+        $sqlStatement = \sprintf(
             'INSERT INTO %s (%s) VALUES (%s)',
             $quotedTable,
             \implode(', ', $quotedColumns),
@@ -116,9 +116,9 @@ final class Storage implements StorageInterface
         );
 
         try {
-            $connection->executeStatement($sql, $values, $types);
+            $connection->executeStatement($sqlStatement, $values, $types);
         } catch (Throwable $throwable) {
-            $this->throw($throwable, ['sql' => $sql]);
+            $this->throw($throwable, ['sql' => $sqlStatement]);
         }
     }
 }

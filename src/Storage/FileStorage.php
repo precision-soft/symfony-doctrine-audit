@@ -17,7 +17,7 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Throwable;
 
-final class FileStorage implements StorageInterface
+class FileStorage implements StorageInterface
 {
     use ThrowTrait;
 

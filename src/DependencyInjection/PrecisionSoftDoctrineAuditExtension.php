@@ -27,7 +27,7 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
 
-final class PrecisionSoftDoctrineAuditExtension extends Extension
+class PrecisionSoftDoctrineAuditExtension extends Extension
 {
     private const BASE_COMMAND_NAME = 'precision-soft:doctrine:audit';
     private const BASE_SERVICE_ID = 'precision_soft_doctrine_audit';
@@ -52,19 +52,12 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         foreach ($storages as $storageName => $storage) {
             $storageType = $storage['type'];
 
-            switch ($storageType) {
-                case Configuration::TYPE_DOCTRINE:
-                    $this->defineStorageDoctrine($containerBuilder, $storage, $storageName);
-                    break;
-                case Configuration::TYPE_FILE:
-                    $this->defineStorageFile($containerBuilder, $storage, $storageName);
-                    break;
-                case Configuration::TYPE_CUSTOM:
-                    $this->defineStorageCustom($containerBuilder, $storage, $storageName);
-                    break;
-                default:
-                    throw new Exception(\sprintf('invalid storage type `%s`', $storageType));
-            }
+            match ($storageType) {
+                Configuration::TYPE_DOCTRINE => $this->defineStorageDoctrine($containerBuilder, $storage, $storageName),
+                Configuration::TYPE_FILE => $this->defineStorageFile($containerBuilder, $storage, $storageName),
+                Configuration::TYPE_CUSTOM => $this->defineStorageCustom($containerBuilder, $storage, $storageName),
+                default => throw new Exception(\sprintf('invalid storage type `%s`', $storageType)),
+            };
         }
     }
 
@@ -76,7 +69,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         $storageType = $storage['type'];
         [$entityManager] = $this->getEntityManagerAndConnection($storage);
 
-        if (true === empty($entityManager)) {
+        if (null === $entityManager || '' === $entityManager) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'entity_manager', $storageType),
             );
@@ -125,7 +118,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         $storageType = $storage['type'];
         $file = $storage['file'] ?? null;
 
-        if (true === empty($file)) {
+        if (null === $file || '' === $file) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'file', $storageType),
             );
@@ -154,7 +147,7 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
         $storageType = $storage['type'];
         $service = $storage['service'] ?? null;
 
-        if (true === empty($service)) {
+        if (null === $service || '' === $service) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'service', $storageType),
             );
@@ -208,9 +201,9 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
             ],
         );
 
-        $storageServiceId = $this->getAuditorConfigId($auditorName);
+        $auditorConfigServiceId = $this->getAuditorConfigId($auditorName);
 
-        $containerBuilder->setDefinition($storageServiceId, $definition);
+        $containerBuilder->setDefinition($auditorConfigServiceId, $definition);
     }
 
     private function defineServices(ContainerBuilder $containerBuilder, array $auditors, array $storages): void
@@ -225,17 +218,16 @@ final class PrecisionSoftDoctrineAuditExtension extends Extension
 
                 $storage = $storages[$storageName];
 
-                switch ($storage['type']) {
-                    case Configuration::TYPE_DOCTRINE:
-                        $this->defineSchemaCommands(
-                            $containerBuilder,
-                            $auditorName,
-                            $storageName,
-                            $auditor,
-                            $storage,
-                        );
-                        break;
-                }
+                match ($storage['type']) {
+                    Configuration::TYPE_DOCTRINE => $this->defineSchemaCommands(
+                        $containerBuilder,
+                        $auditorName,
+                        $storageName,
+                        $auditor,
+                        $storage,
+                    ),
+                    default => null,
+                };
             }
         }
     }

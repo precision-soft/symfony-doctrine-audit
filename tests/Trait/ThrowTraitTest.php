@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Trait;
 use InvalidArgumentException;
 use Mockery;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
+use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
@@ -31,7 +32,7 @@ final class ThrowTraitTest extends AbstractTestCase
     private function createThrowableClass(?LoggerInterface $logger): object
     {
         return new class ($logger) {
-            use \PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
+            use ThrowTrait;
 
             public function __construct(private readonly ?LoggerInterface $logger) {}
 

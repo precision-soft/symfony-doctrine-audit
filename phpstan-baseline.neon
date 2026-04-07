@@ -127,6 +127,12 @@ parameters:
 			path: src/Auditor/Auditor.php
 
 		-
+			message: '#^Parameter \#4 \$entityChangeSets of class PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto constructor expects array\<string, array\<string, array\{mixed, mixed\}\>\>, array\<string, array\<string, array\{mixed, mixed\}\|Doctrine\\ORM\\PersistentCollection\>\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Auditor/Auditor.php
+
+		-
 			message: '#^Property PrecisionSoft\\Doctrine\\Audit\\Auditor\\Auditor\:\:\$auditedEntities \(array\<PrecisionSoft\\Doctrine\\Audit\\Auditor\\EntityDto\>\|null\) does not accept array\<PrecisionSoft\\Doctrine\\Audit\\Auditor\\EntityDto\|PrecisionSoft\\Doctrine\\Audit\\Dto\\Annotation\\EntityDto\>\.$#'
 			identifier: assign.propertyType
 			count: 1
@@ -235,6 +241,12 @@ parameters:
 			path: src/Command/DoctrineSchema/UpdateCommand.php
 
 		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Contract\\AnnotationReadServiceInterface\:\:buildEntityDto\(\) has parameter \$classMetadata with generic interface Doctrine\\Persistence\\Mapping\\ClassMetadata but does not specify its types\: T$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Contract/AnnotationReadServiceInterface.php
+
+		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\DependencyInjection\\PrecisionSoftDoctrineAuditExtension\:\:defineAuditorConfig\(\) has parameter \$auditor with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -319,60 +331,6 @@ parameters:
 			path: src/Dto/AbstractEntityDto.php
 
 		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Annotation\\EntityDto\:\:__construct\(\) has parameter \$ignoredFields with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Annotation/EntityDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Annotation\\EntityDto\:\:getIgnoredFields\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Annotation/EntityDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:__construct\(\) has parameter \$entitiesToDelete with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Auditor/AuditorDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:__construct\(\) has parameter \$entitiesToInsert with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Auditor/AuditorDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:__construct\(\) has parameter \$entitiesToUpdate with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Auditor/AuditorDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:__construct\(\) has parameter \$entityChangeSets with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Auditor/AuditorDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:getEntitiesToDelete\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Auditor/AuditorDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:getEntitiesToInsert\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Auditor/AuditorDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:getEntitiesToUpdate\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Auditor/AuditorDto.php
-
-		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto\:\:getEntityChangeSet\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -383,30 +341,6 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Dto/Storage/EntityDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Storage\\StorageDto\:\:__construct\(\) has parameter \$entities with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Storage/StorageDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Storage\\TransactionDto\:\:__construct\(\) has parameter \$extras with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Storage/TransactionDto.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Dto\\Storage\\TransactionDto\:\:getExtras\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Dto/Storage/TransactionDto.php
-
-		-
-			message: '#^Call to function is_object\(\) with Doctrine\\ORM\\Mapping\\FieldMapping will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: src/EventSubscriber/DoctrineSchemaListener.php
 
 		-
 			message: '#^Cannot call method getColumns\(\) on Doctrine\\DBAL\\Schema\\Index\|null\.$#'
@@ -421,20 +355,8 @@ parameters:
 			path: src/EventSubscriber/DoctrineSchemaListener.php
 
 		-
-			message: '#^Offset ''columnName'' on \*NEVER\* on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: src/EventSubscriber/DoctrineSchemaListener.php
-
-		-
 			message: '#^Strict comparison using \=\=\= between true and false will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
-			count: 1
-			path: src/EventSubscriber/DoctrineSchemaListener.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between true and true will always evaluate to true\.$#'
-			identifier: identical.alwaysTrue
 			count: 1
 			path: src/EventSubscriber/DoctrineSchemaListener.php
 

@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Dto\Storage;
 
 final class TransactionDto
 {
+    /** @param array<string, mixed> $extras */
     public function __construct(
         private readonly string $username,
         private readonly array $extras = [],
@@ -20,6 +21,7 @@ final class TransactionDto
         return $this->username;
     }
 
+    /** @return array<string, mixed> */
     public function getExtras(): array
     {
         return $this->extras;

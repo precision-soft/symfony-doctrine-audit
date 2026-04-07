@@ -10,7 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
+use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Symfony\Console\Command\AbstractCommand as ConsoleAbstractCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -25,10 +25,20 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
         string $name,
         protected readonly EntityManagerInterface $sourceEntityManager,
         protected readonly EntityManagerInterface $destinationEntityManager,
-        protected readonly AnnotationReadService $annotationReadService,
+        protected readonly AnnotationReadServiceInterface $annotationReadService,
     ) {
         parent::__construct($name);
     }
+
+    abstract protected function getSchemaSql(SchemaTool $schemaTool, array $metadatas): array;
+
+    abstract protected function executeSchema(SchemaTool $schemaTool, array $metadatas): void;
+
+    /** @info e.g. "creating" or "updating" */
+    abstract protected function getActionVerb(): string;
+
+    /** @info e.g. "created" or "updated" */
+    abstract protected function getCompletedVerb(): string;
 
     protected function configure(): void
     {
@@ -53,18 +63,6 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
         return new SchemaTool($this->destinationEntityManager);
     }
 
-    /** Return the SQL statements to preview. */
-    abstract protected function getSchemaSql(SchemaTool $schemaTool, array $metadatas): array;
-
-    /** Execute the schema operation. */
-    abstract protected function executeSchema(SchemaTool $schemaTool, array $metadatas): void;
-
-    /** Return the verb used in progress messages, e.g. "creating" or "updating". */
-    abstract protected function getActionVerb(): string;
-
-    /** Return the past-tense verb for success messages, e.g. "created" or "updated". */
-    abstract protected function getCompletedVerb(): string;
-
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
@@ -78,8 +76,8 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
 
             $sqlStatements = $this->getSchemaSql($schemaTool, $sourceMetadatas);
 
-            foreach ($sqlStatements as $sql) {
-                $this->style->writeln(\sprintf('    %s;', $sql));
+            foreach ($sqlStatements as $sqlStatement) {
+                $this->style->writeln(\sprintf('    %s;', $sqlStatement));
             }
 
             $this->writeln('----------------------------------------------------------------------');

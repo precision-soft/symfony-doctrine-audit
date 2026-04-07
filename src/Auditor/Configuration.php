@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Auditor;
 
-final class Configuration
+class Configuration
 {
     public function __construct(
         private readonly array $ignoredFields,

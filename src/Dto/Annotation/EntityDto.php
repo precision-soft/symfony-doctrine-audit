@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Dto\Annotation;
 
 final class EntityDto
 {
+    /** @param string[] $ignoredFields */
     public function __construct(
         private readonly string $class,
         private readonly array $ignoredFields,
@@ -20,6 +21,7 @@ final class EntityDto
         return $this->class;
     }
 
+    /** @return string[] */
     public function getIgnoredFields(): array
     {
         return $this->ignoredFields;

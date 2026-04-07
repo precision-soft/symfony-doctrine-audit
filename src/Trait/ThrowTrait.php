@@ -23,12 +23,12 @@ trait ThrowTrait
         if (null !== $logger) {
             $logger->error(
                 __CLASS__ . ': ' . $throwable->getMessage(),
-                $logContext + [
+                [
                     'code' => $throwable->getCode(),
                     'file' => $throwable->getFile(),
                     'line' => $throwable->getLine(),
                     'trace' => $throwable->getTraceAsString(),
-                ],
+                ] + $logContext,
             );
         }
 

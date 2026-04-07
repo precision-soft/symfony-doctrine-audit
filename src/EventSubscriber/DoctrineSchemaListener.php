@@ -14,18 +14,18 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration as AuditorConfiguration;
+use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
-use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration as StorageConfiguration;
 use PrecisionSoft\Doctrine\Audit\Type\AuditOperationType;
 use PrecisionSoft\Doctrine\Type\Contract\AbstractEnumType;
 use PrecisionSoft\Doctrine\Type\Contract\AbstractSetType;
 use Throwable;
 
-final class DoctrineSchemaListener
+class DoctrineSchemaListener
 {
     public function __construct(
-        private readonly AnnotationReadService $annotationReadService,
+        private readonly AnnotationReadServiceInterface $annotationReadService,
         private readonly AuditorConfiguration $auditorConfiguration,
         private readonly StorageConfiguration $storageConfiguration,
     ) {}
@@ -52,17 +52,33 @@ final class DoctrineSchemaListener
 
                     $field = null;
                     foreach ($classMetadata->fieldMappings as $fieldName => $mapping) {
-                        $mappedColumnName = true === \is_object($mapping) ? $mapping->columnName : ($mapping['columnName'] ?? null);
+                        $mappedColumnName = $mapping->columnName;
                         if ($columnName === $mappedColumnName) {
                             $field = $fieldName;
                             break;
                         }
                     }
                     if (null === $field) {
+                        foreach ($classMetadata->associationMappings as $associationFieldName => $associationMapping) {
+                            if (false === isset($associationMapping->joinColumns)) {
+                                continue;
+                            }
+
+                            foreach ($associationMapping->joinColumns as $joinColumn) {
+                                if ($columnName === $joinColumn->name) {
+                                    $field = $associationFieldName;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+
+                    if (null === $field) {
                         continue;
                     }
-                    if (\in_array($field, $entityDto->getIgnoredFields(), true)
-                        || \in_array($field, $this->auditorConfiguration->getIgnoredFields(), true)
+
+                    if (true === \in_array($field, $entityDto->getIgnoredFields(), true)
+                        || true === \in_array($field, $this->auditorConfiguration->getIgnoredFields(), true)
                     ) {
                         $table->dropColumn($columnName);
                         continue;
@@ -120,7 +136,7 @@ final class DoctrineSchemaListener
         } catch (Throwable $throwable) {
             throw new Exception(
                 \sprintf('`%s` => `%s`', $entityTable->getName(), $throwable->getMessage()),
-                $throwable->getCode(),
+                (int)$throwable->getCode(),
                 $throwable,
             );
         }
@@ -163,7 +179,7 @@ final class DoctrineSchemaListener
         } catch (Throwable $throwable) {
             throw new Exception(
                 \sprintf('`%s` => `%s`', $this->storageConfiguration->getTransactionTableName(), $throwable->getMessage()),
-                $throwable->getCode(),
+                (int)$throwable->getCode(),
                 $throwable,
             );
         }
@@ -173,7 +189,7 @@ final class DoctrineSchemaListener
     {
         $columnType = $column->getType();
 
-        if ($columnType instanceof AbstractEnumType || $columnType instanceof AbstractSetType) {
+        if (true === $columnType instanceof AbstractEnumType || true === $columnType instanceof AbstractSetType) {
             $column->setType(Type::getType(Types::STRING))->setLength(255);
         }
     }

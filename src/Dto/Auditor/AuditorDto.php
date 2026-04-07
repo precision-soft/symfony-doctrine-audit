@@ -13,6 +13,12 @@ final class AuditorDto
     /** @var EntityDto[] */
     private array $auditEntities;
 
+    /**
+     * @param object[] $entitiesToDelete
+     * @param object[] $entitiesToInsert
+     * @param object[] $entitiesToUpdate
+     * @param array<string, array<string, array{0: mixed, 1: mixed}>> $entityChangeSets
+     */
     public function __construct(
         private readonly array $entitiesToDelete,
         private readonly array $entitiesToInsert,
@@ -22,16 +28,19 @@ final class AuditorDto
         $this->auditEntities = [];
     }
 
+    /** @return object[] */
     public function getEntitiesToDelete(): array
     {
         return $this->entitiesToDelete;
     }
 
+    /** @return object[] */
     public function getEntitiesToInsert(): array
     {
         return $this->entitiesToInsert;
     }
 
+    /** @return object[] */
     public function getEntitiesToUpdate(): array
     {
         return $this->entitiesToUpdate;
