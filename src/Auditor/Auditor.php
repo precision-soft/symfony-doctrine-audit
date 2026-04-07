@@ -34,6 +34,9 @@ class Auditor
     private ?array $auditedEntities;
     private ?AuditorDto $auditorDto;
 
+    /**
+     * @param StorageInterface[] $storages
+     */
     public function __construct(
         private readonly Configuration $configuration,
         private readonly EntityManagerInterface $entityManager,
@@ -106,7 +109,6 @@ class Auditor
 
     private function save(StorageDto $storageDto): void
     {
-        /** @var StorageInterface $storage */
         foreach ($this->storages as $storage) {
             $storage->save($storageDto);
         }
@@ -162,7 +164,10 @@ class Auditor
                 continue;
             }
 
-            if (false === (($association['type'] & ClassMetadata::TO_ONE) > 0 && true === $association['isOwningSide'])) {
+            $isToOne = ($association['type'] & ClassMetadata::TO_ONE) > 0;
+            $isOwningSide = true === $association['isOwningSide'];
+
+            if (false === ($isToOne && $isOwningSide)) {
                 continue;
             }
 

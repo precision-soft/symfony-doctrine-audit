@@ -47,13 +47,12 @@ class Configuration implements ConfigurationInterface
         $storages->children()
             ->scalarNode('name')->end()
             ->enumNode('type')->values($types)->isRequired()->end()
-            ->scalarNode('entity_manager')->end()/** @info for doctrine */
-            ->scalarNode('connection')->end()/** @info for doctrine */
-            ->scalarNode('file')->end()/** @info for file */
-            ->scalarNode('service')->end()/** @info for custom */
+            ->scalarNode('entity_manager')->end()
+            ->scalarNode('connection')->end()
+            ->scalarNode('file')->end()
+            ->scalarNode('service')->end()
             ->scalarNode('logger')->end()
             ->arrayNode('config')->scalarPrototype()->end()->end();
-        /** @info generic node with variable content for extra configs */
     }
 
     private function attachAuditors(NodeBuilder $nodeBuilder): void
@@ -86,10 +85,8 @@ class Configuration implements ConfigurationInterface
         $auditors->children()
             ->scalarNode('name')->end()
             ->scalarNode('entity_manager')->defaultValue('default')->end()
-            ->scalarNode('connection')->end()/** @info will use the name of the entity manager if this is not set */
-            /** @info the complete list of storage used by the auditor */
+            ->scalarNode('connection')->end()
             ->arrayNode('storages')->isRequired()->cannotBeEmpty()->scalarPrototype()->end()->end()
-            /** @info a part of the storages list that are used on Auditor::save */
             ->arrayNode('synchronous_storages')->cannotBeEmpty()->scalarPrototype()->end()->end()
             ->scalarNode('transaction_provider')->isRequired()->end()
             ->scalarNode('logger')->end()

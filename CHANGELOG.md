@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## v3.2.0 - 2026-04-07
+
+### Breaking Changes
+
+- `AnnotationReadService::getEntityClass()` static method renamed to `resolveEntityClass()` — callers using the static form must update to `resolveEntityClass()` or inject `AnnotationReadServiceInterface` and call the instance method
+- `Auditor`, `PrecisionSoftDoctrineAuditExtension`, `DoctrineSchemaListener` — removed `final` modifier to allow extension
+
+### Added
+
+- `AnnotationReadServiceInterface` — new contract with `read()`, `buildEntityDto()`, and `getEntityClass()` methods; `AnnotationReadService` now implements it
+- `AnnotationReadService::getEntityClass()` — new instance method implementing `AnnotationReadServiceInterface`
+
+### Fixed
+
+- `DoctrineSchemaListener` — `instanceof` and `\in_array()` now use explicit `true ===` wrappers
+- `AnnotationReadService` — simplify attribute reading: replace `foreach` loop with direct `$attributes[0]` access after `empty()` guard
+- `DoctrineSchemaListener::postGenerateSchemaTable()` — resolve join column field names by iterating `associationMappings` when direct field lookup returns null
+
+### Changed
+
+- `Auditor` — depends on `AnnotationReadServiceInterface` instead of concrete `AnnotationReadService`; replace `$entity::class` with `getEntityClass()` call for correct proxy class resolution; `fieldMapping['type']` → `fieldMapping->type` (Doctrine 3 object-style mapping); refactor `createAuditEntities()` from `array_map`/`array_filter` to explicit `foreach`
+- `DoctrineSchemaListener` — depends on `AnnotationReadServiceInterface`; use `$mapping->columnName` directly (Doctrine 3)
+- `AbstractCommand` — depends on `AnnotationReadServiceInterface`; rename `$sql` → `$sqlStatement` in loop
+- `PrecisionSoftDoctrineAuditExtension` — replace `switch` with `match` for storage type resolution; replace `empty()` checks with explicit `null === || '' ===`; rename `$storageServiceId` → `$auditorConfigServiceId`
+- `ThrowTrait` — cast `$throwable->getCode()` to `(int)` in both constructor calls
+
 ## v3.1.1 - 2026-04-06
 
 ### Fixed

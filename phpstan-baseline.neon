@@ -31,12 +31,6 @@ parameters:
 			path: src/Auditor/Auditor.php
 
 		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Auditor\\Auditor\:\:__construct\(\) has parameter \$storages with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Auditor/Auditor.php
-
-		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Auditor\\Auditor\:\:createAuditEntities\(\) has parameter \$entities with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1

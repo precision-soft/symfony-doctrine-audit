@@ -99,7 +99,6 @@ class AnnotationReadService implements AnnotationReadServiceInterface
             $field = $reflectionProperty->getName();
 
             if (true === $classMetadata->isIdentifier($field)) {
-                /** @info identifiers are never ignored */
                 continue;
             }
 

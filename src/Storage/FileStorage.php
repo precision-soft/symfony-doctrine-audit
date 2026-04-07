@@ -32,11 +32,6 @@ class FileStorage implements StorageInterface
         $this->jsonEncoder = new JsonEncoder();
     }
 
-    private function getLogger(): ?LoggerInterface
-    {
-        return $this->logger;
-    }
-
     public function save(StorageDto $storageDto): void
     {
         try {
@@ -46,6 +41,11 @@ class FileStorage implements StorageInterface
         } catch (Throwable $throwable) {
             $this->throw($throwable);
         }
+    }
+
+    private function getLogger(): ?LoggerInterface
+    {
+        return $this->logger;
     }
 
     private function buildTransaction(StorageDto $storageDto): string

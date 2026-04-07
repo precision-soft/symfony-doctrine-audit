@@ -34,10 +34,8 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
 
     abstract protected function executeSchema(SchemaTool $schemaTool, array $metadatas): void;
 
-    /** @info e.g. "creating" or "updating" */
     abstract protected function getActionVerb(): string;
 
-    /** @info e.g. "created" or "updated" */
     abstract protected function getCompletedVerb(): string;
 
     protected function configure(): void
