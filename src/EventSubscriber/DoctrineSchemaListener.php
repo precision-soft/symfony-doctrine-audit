@@ -11,6 +11,8 @@ namespace PrecisionSoft\Doctrine\Audit\EventSubscriber;
 use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping\ManyToOneAssociationMapping;
+use Doctrine\ORM\Mapping\OneToOneOwningSideMapping;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration as AuditorConfiguration;
@@ -60,7 +62,8 @@ class DoctrineSchemaListener
                     }
                     if (null === $field) {
                         foreach ($classMetadata->associationMappings as $associationFieldName => $associationMapping) {
-                            if (false === isset($associationMapping->joinColumns)) {
+                            if (false === $associationMapping instanceof ManyToOneAssociationMapping
+                                && false === $associationMapping instanceof OneToOneOwningSideMapping) {
                                 continue;
                             }
 
@@ -120,6 +123,18 @@ class DoctrineSchemaListener
 
                 foreach ($table->getUniqueConstraints() as $uniqueConstraint) {
                     $table->removeUniqueConstraint($uniqueConstraint->getName());
+                }
+
+                $existingColumnNames = \array_keys($table->getColumns());
+                foreach ($primaryKeyColumns as $primaryKeyColumn) {
+                    if (false === \in_array($primaryKeyColumn, $existingColumnNames, true)) {
+                        throw new Exception(
+                            \sprintf(
+                                'primary key column `%s` was dropped — identifier fields cannot be added to the ignored fields list',
+                                $primaryKeyColumn,
+                            ),
+                        );
+                    }
                 }
 
                 $table->setPrimaryKey($primaryKeyColumns);

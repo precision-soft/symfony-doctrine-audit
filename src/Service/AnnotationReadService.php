@@ -125,7 +125,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
     {
         $attributes = $reflectionClass->getAttributes(Entity::class);
 
-        return false === empty($attributes);
+        return [] !== $attributes;
     }
 
     private function hasIgnoreAttribute(ReflectionProperty $reflectionProperty): bool

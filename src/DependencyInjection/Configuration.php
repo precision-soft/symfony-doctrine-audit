@@ -68,7 +68,7 @@ class Configuration implements ConfigurationInterface
                 $auditor['synchronous_storages'] ??= $auditor['storages'];
 
                 $missingStorages = \array_diff($auditor['synchronous_storages'], $auditor['storages']);
-                if (false === empty($missingStorages)) {
+                if ([] !== $missingStorages) {
                     throw new Exception(
                         \sprintf(
                             'the synchronous storages `%s` were not found in the storages list `%s`',

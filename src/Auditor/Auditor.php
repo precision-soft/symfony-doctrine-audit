@@ -22,6 +22,7 @@ use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto as StorageEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
+use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -62,7 +63,7 @@ class Auditor
 
             $entitiesToUpdate = $this->filterAuditedEntities($unitOfWork->getScheduledEntityUpdates());
 
-            if (true === empty($entitiesToDelete) && true === empty($entitiesToInsert) && true === empty($entitiesToUpdate)) {
+            if ([] === $entitiesToDelete && [] === $entitiesToInsert && [] === $entitiesToUpdate) {
                 return;
             }
 
@@ -310,7 +311,12 @@ class Auditor
             }
 
             if ([] === $fields) {
-                continue;
+                throw new Exception(
+                    \sprintf(
+                        'entity `%s` has all fields ignored — review @Ignore annotations and the global ignored_fields configuration',
+                        $entityDto->getClass(),
+                    ),
+                );
             }
 
             $entities[] = new StorageEntityDto(
