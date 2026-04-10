@@ -32,7 +32,7 @@ class Storage implements StorageInterface
 
     public function save(StorageDto $storageDto): void
     {
-        if (true === empty($storageDto->getEntities())) {
+        if ([] === $storageDto->getEntities()) {
             return;
         }
 
@@ -67,16 +67,24 @@ class Storage implements StorageInterface
     {
         $connection = $this->entityManager->getConnection();
 
+        $data = [
+            'username' => $transactionDto->getUsername(),
+            'created' => new DateTimeImmutable(),
+        ];
+        $types = [
+            'username' => Types::STRING,
+            'created' => Types::DATETIME_IMMUTABLE,
+        ];
+
+        if ([] !== $transactionDto->getExtras()) {
+            $data['extras'] = \json_encode($transactionDto->getExtras(), \JSON_THROW_ON_ERROR);
+            $types['extras'] = Types::TEXT;
+        }
+
         $connection->insert(
             $this->configuration->getTransactionTableName(),
-            [
-                'username' => $transactionDto->getUsername(),
-                'created' => new DateTimeImmutable(),
-            ],
-            [
-                Types::STRING,
-                Types::DATETIME_IMMUTABLE,
-            ],
+            $data,
+            $types,
         );
 
         $lastInsertId = (int)$connection->lastInsertId();

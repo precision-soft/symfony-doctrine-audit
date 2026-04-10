@@ -128,10 +128,17 @@ final class DoctrineSchemaListenerTest extends TestCase
             ->with('username', Types::STRING, Mockery::type('array'))
             ->once()
             ->andReturn($usernameColumn);
+        $extrasColumn = Mockery::mock(Column::class);
+        $extrasColumn->shouldReceive('setNotnull')->with(false)->once()->andReturnSelf();
+
         $transactionTable->shouldReceive('addColumn')
             ->with('created', Types::DATETIME_IMMUTABLE)
             ->once()
             ->andReturn($createdColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('extras', Types::TEXT)
+            ->once()
+            ->andReturn($extrasColumn);
         $transactionTable->shouldReceive('setPrimaryKey')
             ->once()
             ->with(['id']);
@@ -169,9 +176,15 @@ final class DoctrineSchemaListenerTest extends TestCase
         $transactionTable->shouldReceive('addColumn')
             ->with('username', Types::STRING, Mockery::type('array'))
             ->andReturn($usernameColumn);
+        $extrasColumn = Mockery::mock(Column::class);
+        $extrasColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
+
         $transactionTable->shouldReceive('addColumn')
             ->with('created', Types::DATETIME_IMMUTABLE)
             ->andReturn($createdColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('extras', Types::TEXT)
+            ->andReturn($extrasColumn);
         $transactionTable->shouldReceive('setPrimaryKey')
             ->with(['id']);
 
@@ -215,9 +228,15 @@ final class DoctrineSchemaListenerTest extends TestCase
         $transactionTable->shouldReceive('addColumn')
             ->with('username', Types::STRING, Mockery::type('array'))
             ->andReturn($usernameColumn);
+        $extrasColumn = Mockery::mock(Column::class);
+        $extrasColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
+
         $transactionTable->shouldReceive('addColumn')
             ->with('created', Types::DATETIME_IMMUTABLE)
             ->andReturn($createdColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('extras', Types::TEXT)
+            ->andReturn($extrasColumn);
         $transactionTable->shouldReceive('setPrimaryKey')
             ->with(['id']);
 

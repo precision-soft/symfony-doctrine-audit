@@ -112,7 +112,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
     {
         $attributes = $reflectionClass->getAttributes(Auditable::class);
 
-        if (true === empty($attributes)) {
+        if ([] === $attributes) {
             return false;
         }
 
@@ -132,7 +132,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
     {
         $attributes = $reflectionProperty->getAttributes(Ignore::class);
 
-        if (true === empty($attributes)) {
+        if ([] === $attributes) {
             return false;
         }
 

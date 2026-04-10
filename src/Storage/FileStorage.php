@@ -76,7 +76,7 @@ class FileStorage implements StorageInterface
             'entities' => $entities,
         ];
 
-        if (false === empty($transactionDto->getExtras())) {
+        if ([] !== $transactionDto->getExtras()) {
             $transaction['extras'] = $transactionDto->getExtras();
         }
 

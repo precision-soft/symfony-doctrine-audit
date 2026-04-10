@@ -115,12 +115,6 @@ parameters:
 			path: src/Auditor/Auditor.php
 
 		-
-			message: '#^Parameter \#3 \$type of class PrecisionSoft\\Doctrine\\Audit\\Dto\\FieldDto constructor expects string, string\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Auditor/Auditor.php
-
-		-
 			message: '#^Parameter \#4 \$entityChangeSets of class PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto constructor expects array\<string, array\<string, array\{mixed, mixed\}\>\>, array\<string, array\<string, array\{mixed, mixed\}\|Doctrine\\ORM\\PersistentCollection\>\> given\.$#'
 			identifier: argument.type
 			count: 1
@@ -343,13 +337,7 @@ parameters:
 			path: src/EventSubscriber/DoctrineSchemaListener.php
 
 		-
-			message: '#^Expression in empty\(\) is not falsy\.$#'
-			identifier: empty.expr
-			count: 1
-			path: src/EventSubscriber/DoctrineSchemaListener.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between true and false will always evaluate to false\.$#'
+			message: '#^Strict comparison using \=\=\= between array\{\} and non\-empty\-list\<Doctrine\\DBAL\\Schema\\Column\> will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1
 			path: src/EventSubscriber/DoctrineSchemaListener.php

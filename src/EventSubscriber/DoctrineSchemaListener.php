@@ -9,6 +9,8 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Audit\EventSubscriber;
 
 use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping\ManyToOneAssociationMapping;
@@ -34,117 +36,16 @@ class DoctrineSchemaListener
 
     public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $eventArgs): void
     {
-        $classMetadata = $eventArgs->getClassMetadata();
-        $schema = $eventArgs->getSchema();
         $entityTable = $eventArgs->getClassTable();
+        $schema = $eventArgs->getSchema();
 
         try {
-            $auditable = false;
+            $tableIsAuditable = false;
 
             try {
-                $entityDto = $this->annotationReadService->buildEntityDto($classMetadata);
-                if (null === $entityDto) {
-                    return;
-                }
-
-                $table = $schema->getTable($entityTable->getName());
-
-                foreach ($table->getColumns() as $column) {
-                    $columnName = $column->getName();
-
-                    $field = null;
-                    foreach ($classMetadata->fieldMappings as $fieldName => $mapping) {
-                        $mappedColumnName = $mapping->columnName;
-                        if ($columnName === $mappedColumnName) {
-                            $field = $fieldName;
-                            break;
-                        }
-                    }
-                    if (null === $field) {
-                        foreach ($classMetadata->associationMappings as $associationFieldName => $associationMapping) {
-                            if (false === $associationMapping instanceof ManyToOneAssociationMapping
-                                && false === $associationMapping instanceof OneToOneOwningSideMapping) {
-                                continue;
-                            }
-
-                            foreach ($associationMapping->joinColumns as $joinColumn) {
-                                if ($columnName === $joinColumn->name) {
-                                    $field = $associationFieldName;
-                                    break 2;
-                                }
-                            }
-                        }
-                    }
-
-                    if (null === $field) {
-                        continue;
-                    }
-
-                    if (true === \in_array($field, $entityDto->getIgnoredFields(), true)
-                        || true === \in_array($field, $this->auditorConfiguration->getIgnoredFields(), true)
-                    ) {
-                        $table->dropColumn($columnName);
-                        continue;
-                    }
-
-                    $column->setAutoincrement(false)
-                        ->setNotnull(false);
-
-                    $this->updateType($column);
-                }
-
-                if (true === empty($table->getColumns())) {
-                    return;
-                }
-
-                $auditable = true;
-
-                $table->addColumn(
-                    $this->storageConfiguration->getTransactionIdColumnName(),
-                    $this->storageConfiguration->getTransactionIdColumnType(),
-                );
-                $table->addColumn(
-                    $this->storageConfiguration->getOperationColumnName(),
-                    AuditOperationType::getDefaultName(),
-                    ['notnull' => true],
-                );
-
-                $primaryKeyColumns = $entityTable->getPrimaryKey()->getColumns();
-                $primaryKeyColumns[] = $this->storageConfiguration->getTransactionIdColumnName();
-
-                foreach ($table->getForeignKeys() as $foreignKey) {
-                    $table->removeForeignKey($foreignKey->getName());
-                }
-
-                $table->dropPrimaryKey();
-                foreach ($table->getIndexes() as $index) {
-                    $table->dropIndex($index->getName());
-                }
-
-                foreach ($table->getUniqueConstraints() as $uniqueConstraint) {
-                    $table->removeUniqueConstraint($uniqueConstraint->getName());
-                }
-
-                $existingColumnNames = \array_keys($table->getColumns());
-                foreach ($primaryKeyColumns as $primaryKeyColumn) {
-                    if (false === \in_array($primaryKeyColumn, $existingColumnNames, true)) {
-                        throw new Exception(
-                            \sprintf(
-                                'primary key column `%s` was dropped — identifier fields cannot be added to the ignored fields list',
-                                $primaryKeyColumn,
-                            ),
-                        );
-                    }
-                }
-
-                $table->setPrimaryKey($primaryKeyColumns);
-
-                $table->addIndex(
-                    [$this->storageConfiguration->getTransactionIdColumnName()],
-                    $this->storageConfiguration->getTransactionIdColumnName(),
-                );
+                $tableIsAuditable = $this->configureAuditTable($eventArgs, $schema, $entityTable);
             } finally {
-                if (false === $auditable) {
+                if (false === $tableIsAuditable) {
                     $schema->dropTable($entityTable->getName());
                 }
             }
@@ -176,6 +77,7 @@ class DoctrineSchemaListener
             );
             $transactionTable->addColumn('username', Types::STRING, ['length' => 500])->setNotnull(false);
             $transactionTable->addColumn('created', Types::DATETIME_IMMUTABLE);
+            $transactionTable->addColumn('extras', Types::TEXT)->setNotnull(false);
 
             $transactionTable->setPrimaryKey(['id']);
 
@@ -198,6 +100,114 @@ class DoctrineSchemaListener
                 $throwable,
             );
         }
+    }
+
+    private function configureAuditTable(GenerateSchemaTableEventArgs $eventArgs, Schema $schema, Table $entityTable): bool
+    {
+        $classMetadata = $eventArgs->getClassMetadata();
+
+        $entityDto = $this->annotationReadService->buildEntityDto($classMetadata);
+
+        if (null === $entityDto) {
+            return false;
+        }
+
+        $table = $schema->getTable($entityTable->getName());
+
+        foreach ($table->getColumns() as $column) {
+            $columnName = $column->getName();
+
+            $field = null;
+            foreach ($classMetadata->fieldMappings as $fieldName => $mapping) {
+                $mappedColumnName = $mapping->columnName;
+                if ($columnName === $mappedColumnName) {
+                    $field = $fieldName;
+                    break;
+                }
+            }
+            if (null === $field) {
+                foreach ($classMetadata->associationMappings as $associationFieldName => $associationMapping) {
+                    if (false === $associationMapping instanceof ManyToOneAssociationMapping
+                        && false === $associationMapping instanceof OneToOneOwningSideMapping) {
+                        continue;
+                    }
+
+                    foreach ($associationMapping->joinColumns as $joinColumn) {
+                        if ($columnName === $joinColumn->name) {
+                            $field = $associationFieldName;
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            if (null === $field) {
+                continue;
+            }
+
+            if (true === \in_array($field, $entityDto->getIgnoredFields(), true)
+                || true === \in_array($field, $this->auditorConfiguration->getIgnoredFields(), true)
+            ) {
+                $table->dropColumn($columnName);
+                continue;
+            }
+
+            $column->setAutoincrement(false)
+                ->setNotnull(false);
+
+            $this->updateType($column);
+        }
+
+        if ([] === $table->getColumns()) {
+            return false;
+        }
+
+        $table->addColumn(
+            $this->storageConfiguration->getTransactionIdColumnName(),
+            $this->storageConfiguration->getTransactionIdColumnType(),
+        );
+        $table->addColumn(
+            $this->storageConfiguration->getOperationColumnName(),
+            AuditOperationType::getDefaultName(),
+            ['notnull' => true],
+        );
+
+        $primaryKeyColumns = $entityTable->getPrimaryKey()->getColumns();
+        $primaryKeyColumns[] = $this->storageConfiguration->getTransactionIdColumnName();
+
+        foreach ($table->getForeignKeys() as $foreignKey) {
+            $table->removeForeignKey($foreignKey->getName());
+        }
+
+        $table->dropPrimaryKey();
+        foreach ($table->getIndexes() as $index) {
+            $table->dropIndex($index->getName());
+        }
+
+        foreach ($table->getUniqueConstraints() as $uniqueConstraint) {
+            $table->removeUniqueConstraint($uniqueConstraint->getName());
+        }
+
+        $existingColumnNames = \array_keys($table->getColumns());
+        foreach ($primaryKeyColumns as $primaryKeyColumn) {
+            if (false === \in_array($primaryKeyColumn, $existingColumnNames, true)) {
+                throw new Exception(
+                    \sprintf(
+                        'primary key column `%s` was dropped — identifier fields cannot be added to the ignored fields list',
+                        $primaryKeyColumn,
+                    ),
+                );
+            }
+        }
+
+        $table->setPrimaryKey($primaryKeyColumns);
+
+        $table->addIndex(
+            [$this->storageConfiguration->getTransactionIdColumnName()],
+            $this->storageConfiguration->getTransactionIdColumnName(),
+        );
+
+        return true;
     }
 
     private function updateType(Column $column): void

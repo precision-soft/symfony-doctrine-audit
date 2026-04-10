@@ -1,6 +1,35 @@
 # CHANGELOG
 
-## v3.2.0 - 2026-04-07
+## [v3.2.2] - 2026-04-10
+
+### Added
+
+- `DoctrineSchemaListener::postGenerateSchema()` — add `extras` column to `audit_transaction` table schema (column was missing from schema generation)
+
+### Fixed
+
+- `Auditor` — track old association field values in audit trail (previously associations always recorded `null` as old value on update)
+- `Storage::getTransactionId()` — persist `extras` data in Doctrine storage (was silently ignored)
+- `Exception` — removed `final` modifier to allow extension
+
+### Changed
+
+- `DoctrineSchemaListener::postGenerateSchemaTable()` — extract audit table configuration to private `configureAuditTable()` method
+- `AnnotationReadService` — replace `empty()` checks with explicit `[] ===` comparisons
+- `Storage::save()` / `FileStorage::buildTransaction()` — replace `empty()` checks with explicit `[] ===` / `[] !==` comparisons
+- Update `phpstan-baseline.neon`
+
+## [v3.2.1] - 2026-04-09
+
+### Fixed
+
+- `Auditor::onFlush()` — replace `empty()` checks with explicit `[] ===` comparisons for audited entity lists
+- `Auditor::createStorageDto()` — throw `Exception` instead of silently skipping when all fields of an entity are ignored
+- `Configuration` — replace `empty()` check with explicit `[] !==` comparison for `synchronous_storages` validation
+- `DoctrineSchemaListener` — replace `isset($associationMapping->joinColumns)` guard with `instanceof ManyToOneAssociationMapping / OneToOneOwningSideMapping` check for correct owning-side detection
+- `DoctrineSchemaListener` — throw `Exception` when a primary key column has been dropped via the ignored fields list
+
+## [v3.2.0] - 2026-04-07
 
 ### Breaking Changes
 
@@ -26,7 +55,7 @@
 - `PrecisionSoftDoctrineAuditExtension` — replace `switch` with `match` for storage type resolution; replace `empty()` checks with explicit `null === || '' ===`; rename `$storageServiceId` → `$auditorConfigServiceId`
 - `ThrowTrait` — cast `$throwable->getCode()` to `(int)` in both constructor calls
 
-## v3.1.1 - 2026-04-06
+## [v3.1.1] - 2026-04-06
 
 ### Fixed
 
@@ -52,7 +81,7 @@
 - Variable naming compliance: `$sqls` -> `$sqlStatements`, `$diff` -> `$missingStorages`, `$data` -> `$originalEntityData`/`$associationData`, `$type` -> `$storageType`/`$fieldType`, `$value` -> `$relatedFieldValue`/`$fieldValue`, `$obj` -> `$throwTraitUser`, `$mock` -> `$annotationReadService`, `$result`/`$first`/`$second` -> descriptive names in tests
 - Update `phpstan-baseline.neon`
 
-## v3.1.0
+## [v3.1.0]
 
 ### Breaking changes
 
@@ -83,3 +112,13 @@
 - `FieldDto` — added `$hasOldValue` constructor parameter and `hasOldValue()` method
 - `AbstractCommand` — extracted duplicated `execute()` logic from `CreateCommand`/`UpdateCommand` into template method pattern
 - Removed 2 resolved entries from `phpstan-baseline.neon`
+
+[v3.2.2]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.2.1...v3.2.2
+
+[v3.2.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.2.0...v3.2.1
+
+[v3.2.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.1.1...v3.2.0
+
+[v3.1.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.1.0...v3.1.1
+
+[v3.1.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.0.4...v3.1.0

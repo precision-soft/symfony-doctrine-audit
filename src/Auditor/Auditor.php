@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Auditor;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
@@ -50,6 +51,11 @@ class Auditor
         $this->auditorDto = null;
     }
 
+    /**
+     * Deletions are captured in onFlush because entities are still in the identity map.
+     * Inserts and updates are deferred to postFlush so that generated identifiers (e.g. auto-increment)
+     * are available and change-sets are final.
+     */
     public function onFlush(OnFlushEventArgs $eventArgs): void
     {
         try {
@@ -185,12 +191,23 @@ class Auditor
                 $sourceColumn = $joinColumn['name'];
 
                 $targetFieldName = $targetClassMetadata->getFieldName($joinColumn['referencedColumnName']);
-                $fieldType = $targetClassMetadata->getTypeOfField($targetFieldName);
+                $fieldType = $targetClassMetadata->getTypeOfField($targetFieldName) ?? Types::STRING;
 
                 $relatedFieldValue = $relatedId[$targetFieldName] ?? null;
 
+                $hasOldValue = null !== $changeSet && true === \array_key_exists($field, $changeSet);
+                $oldRelatedFieldValue = null;
+
+                if (true === $hasOldValue) {
+                    $oldAssociationData = $changeSet[$field][0];
+                    if (null !== $oldAssociationData && true === $unitOfWork->isInIdentityMap($oldAssociationData)) {
+                        $oldRelatedId = $unitOfWork->getEntityIdentifier($oldAssociationData);
+                        $oldRelatedFieldValue = $oldRelatedId[$targetFieldName] ?? null;
+                    }
+                }
+
                 $auditorEntityDto->addField(
-                    new FieldDto($field, $sourceColumn, $fieldType, $relatedFieldValue),
+                    new FieldDto($field, $sourceColumn, $fieldType, $relatedFieldValue, $oldRelatedFieldValue, $hasOldValue),
                 );
             }
         }
