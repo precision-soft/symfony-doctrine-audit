@@ -12,9 +12,9 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Mockery\MockInterface;
-use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
@@ -25,13 +25,17 @@ use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Storage;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use stdClass;
 
 /**
  * @internal
  */
-final class StorageTest extends TestCase
+final class StorageTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(stdClass::class);
+    }
 
     private EntityManagerInterface|MockInterface $entityManager;
     private Configuration $configuration;

@@ -17,9 +17,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Mockery\MockInterface;
-use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration as AuditorConfiguration;
 use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Doctrine\Audit\EventSubscriber\DoctrineSchemaListener;
@@ -31,9 +31,12 @@ use stdClass;
 /**
  * @internal
  */
-final class DoctrineSchemaListenerTest extends TestCase
+final class DoctrineSchemaListenerTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(stdClass::class);
+    }
 
     private AnnotationReadServiceInterface|MockInterface $annotationReadService;
     private AuditorConfiguration $auditorConfiguration;

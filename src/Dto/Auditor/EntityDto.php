@@ -12,7 +12,7 @@ use PrecisionSoft\Doctrine\Audit\Dto\AbstractEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 
-final class EntityDto extends AbstractEntityDto
+class EntityDto extends AbstractEntityDto
 {
     public function __construct(Operation $operation, string $class, string $tableName)
     {

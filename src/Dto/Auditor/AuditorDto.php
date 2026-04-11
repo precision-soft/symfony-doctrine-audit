@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Dto\Auditor;
 
-final class AuditorDto
+class AuditorDto
 {
     /** @var EntityDto[] */
     private array $auditEntities;

@@ -10,11 +10,12 @@ namespace PrecisionSoft\Doctrine\Audit\Storage\Doctrine;
 
 class Configuration
 {
-    private string $transactionTableName;
-    private string $transactionIdColumnName;
-    private string $transactionIdColumnType;
-    private string $operationColumnName;
+    private readonly string $transactionTableName;
+    private readonly string $transactionIdColumnName;
+    private readonly string $transactionIdColumnType;
+    private readonly string $operationColumnName;
 
+    /** @param array<string, string> $config */
     public function __construct(array $config)
     {
         $this->transactionTableName = $config['transaction_table_name'] ?? 'audit_transaction';

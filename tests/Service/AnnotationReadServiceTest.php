@@ -13,20 +13,24 @@ use Doctrine\ORM\Mapping\ClassMetadata as MappingClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\TwoEntity;
 use ReflectionClass;
+use stdClass;
 
 /**
  * @internal
  */
-final class AnnotationReadServiceTest extends TestCase
+final class AnnotationReadServiceTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(stdClass::class);
+    }
 
     private AnnotationReadService $annotationReadService;
 
@@ -44,7 +48,7 @@ final class AnnotationReadServiceTest extends TestCase
 
     public function testBuildEntityDtoReturnsNullForNonAuditableEntity(): void
     {
-        $nonAuditableMetadata = new MappingClassMetadata(\stdClass::class);
+        $nonAuditableMetadata = new MappingClassMetadata(stdClass::class);
 
         $entityDto = $this->annotationReadService->buildEntityDto($nonAuditableMetadata);
 

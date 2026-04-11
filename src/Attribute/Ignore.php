@@ -11,7 +11,7 @@ namespace PrecisionSoft\Doctrine\Audit\Attribute;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-final class Ignore
+class Ignore
 {
     public function __construct(
         public readonly bool $enabled = true,

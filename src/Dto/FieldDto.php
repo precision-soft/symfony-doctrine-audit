@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Dto;
 
-final class FieldDto
+class FieldDto
 {
     public function __construct(
         private readonly string $name,

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Dto\Storage;
 
-final class StorageDto
+class StorageDto
 {
     /** @param EntityDto[] $entities */
     public function __construct(

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Dto\Storage;
 
-final class TransactionDto
+class TransactionDto
 {
     /** @param array<string, mixed> $extras */
     public function __construct(

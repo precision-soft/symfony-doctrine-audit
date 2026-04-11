@@ -34,6 +34,10 @@ class FileStorage implements StorageInterface
 
     public function save(StorageDto $storageDto): void
     {
+        if (0 === \count($storageDto->getEntities())) {
+            return;
+        }
+
         try {
             $transaction = $this->buildTransaction($storageDto);
 

@@ -116,8 +116,18 @@ class Auditor
 
     private function save(StorageDto $storageDto): void
     {
+        $firstException = null;
+
         foreach ($this->storages as $storage) {
-            $storage->save($storageDto);
+            try {
+                $storage->save($storageDto);
+            } catch (Throwable $throwable) {
+                $firstException ??= $throwable;
+            }
+        }
+
+        if (null !== $firstException) {
+            throw $firstException;
         }
     }
 

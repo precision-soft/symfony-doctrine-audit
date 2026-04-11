@@ -18,9 +18,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\DefaultQuoteStrategy;
 use Doctrine\ORM\UnitOfWork;
 use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Mockery\MockInterface;
-use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Audit\Auditor\Auditor;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration;
 use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
@@ -33,13 +33,17 @@ use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use stdClass;
 
 /**
  * @internal
  */
-final class AuditorTest extends TestCase
+final class AuditorTest extends AbstractTestCase
 {
-    use MockeryPHPUnitIntegration;
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(stdClass::class);
+    }
 
     private Configuration $configuration;
     private EntityManagerInterface|MockInterface $entityManager;

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Dto\Annotation;
 
-final class EntityDto
+class EntityDto
 {
     /** @param string[] $ignoredFields */
     public function __construct(
