@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.2.3] - 2026-04-11
+
 ### Fixed
 
 - `FileStorage::save()` — skip writing when entities list is empty
@@ -130,6 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FieldDto` — added `$hasOldValue` constructor parameter and `hasOldValue()` method
 - `AbstractCommand` — extracted duplicated `execute()` logic from `CreateCommand`/`UpdateCommand` into template method pattern
 - Removed 2 resolved entries from `phpstan-baseline.neon`
+
+[v3.2.3]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.2.2...v3.2.3
 
 [v3.2.2]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.2.1...v3.2.2
 
