@@ -47,12 +47,12 @@ class FileStorage implements StorageInterface
         }
     }
 
-    private function getLogger(): ?LoggerInterface
+    protected function getLogger(): ?LoggerInterface
     {
         return $this->logger;
     }
 
-    private function buildTransaction(StorageDto $storageDto): string
+    protected function buildTransaction(StorageDto $storageDto): string
     {
         $entities = [];
 

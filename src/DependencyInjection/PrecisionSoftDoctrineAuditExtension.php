@@ -47,7 +47,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $this->defineServices($containerBuilder, $processedConfig['auditors'], $processedConfig['storages']);
     }
 
-    private function defineStorages(ContainerBuilder $containerBuilder, array $storages): void
+    protected function defineStorages(ContainerBuilder $containerBuilder, array $storages): void
     {
         foreach ($storages as $storageName => $storage) {
             $storageType = $storage['type'];
@@ -61,7 +61,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         }
     }
 
-    private function defineStorageDoctrine(
+    protected function defineStorageDoctrine(
         ContainerBuilder $containerBuilder,
         array $storage,
         string $storageName,
@@ -93,7 +93,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($storageServiceId, $definition);
     }
 
-    private function defineStorageDoctrineConfig(
+    protected function defineStorageDoctrineConfig(
         ContainerBuilder $containerBuilder,
         string $storageName,
         array $config,
@@ -110,7 +110,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($storageServiceId, $definition);
     }
 
-    private function defineStorageFile(
+    protected function defineStorageFile(
         ContainerBuilder $containerBuilder,
         array $storage,
         string $storageName,
@@ -139,7 +139,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($storageServiceId, $definition);
     }
 
-    private function defineStorageCustom(
+    protected function defineStorageCustom(
         ContainerBuilder $containerBuilder,
         array $storage,
         string $storageName,
@@ -158,7 +158,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setAlias($storageServiceId, $service);
     }
 
-    private function defineAuditors(ContainerBuilder $containerBuilder, array $auditors): void
+    protected function defineAuditors(ContainerBuilder $containerBuilder, array $auditors): void
     {
         foreach ($auditors as $auditorName => $auditor) {
             [$entityManager, $connection] = $this->getEntityManagerAndConnection($auditor);
@@ -192,7 +192,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         }
     }
 
-    private function defineAuditorConfig(ContainerBuilder $containerBuilder, string $auditorName, array $auditor): void
+    protected function defineAuditorConfig(ContainerBuilder $containerBuilder, string $auditorName, array $auditor): void
     {
         $definition = new Definition(
             AuditorConfig::class,
@@ -206,7 +206,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($auditorConfigServiceId, $definition);
     }
 
-    private function defineServices(ContainerBuilder $containerBuilder, array $auditors, array $storages): void
+    protected function defineServices(ContainerBuilder $containerBuilder, array $auditors, array $storages): void
     {
         foreach ($auditors as $auditorName => $auditor) {
             foreach ($auditor['storages'] as $storageName) {
@@ -232,7 +232,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         }
     }
 
-    private function defineSchemaCommands(
+    protected function defineSchemaCommands(
         ContainerBuilder $containerBuilder,
         string $auditorName,
         string $storageName,
@@ -294,37 +294,37 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         );
     }
 
-    private function getStorageId(string $name): string
+    protected function getStorageId(string $name): string
     {
         return \sprintf('%s.storage.%s', self::BASE_SERVICE_ID, $name);
     }
 
-    private function getStorageConfigId(string $name): string
+    protected function getStorageConfigId(string $name): string
     {
         return \sprintf('%s.storage.%s.config', self::BASE_SERVICE_ID, $name);
     }
 
-    private function getAuditorId(string $name): string
+    protected function getAuditorId(string $name): string
     {
         return \sprintf('%s.auditor.%s', self::BASE_SERVICE_ID, $name);
     }
 
-    private function getAuditorConfigId(string $name): string
+    protected function getAuditorConfigId(string $name): string
     {
         return \sprintf('%s.auditor.%s.config', self::BASE_SERVICE_ID, $name);
     }
 
-    private function getCommandId(string $name): string
+    protected function getCommandId(string $name): string
     {
         return \sprintf('%s.command.%s', self::BASE_SERVICE_ID, $name);
     }
 
-    private function getEntityManager(string $name): Reference
+    protected function getEntityManager(string $name): Reference
     {
         return new Reference(\sprintf('doctrine.orm.%s_entity_manager', $name));
     }
 
-    private function getEntityManagerAndConnection(array $config): array
+    protected function getEntityManagerAndConnection(array $config): array
     {
         $entityManager = $config['entity_manager'];
         $connection = $config['connection'] ?? $entityManager;

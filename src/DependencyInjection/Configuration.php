@@ -34,7 +34,7 @@ class Configuration implements ConfigurationInterface
         return $treeBuilder;
     }
 
-    private function attachStorages(NodeBuilder $nodeBuilder): void
+    protected function attachStorages(NodeBuilder $nodeBuilder): void
     {
         /** @var ArrayNodeDefinition $storages */
         $storages = $nodeBuilder->arrayNode('storages')->isRequired()
@@ -55,7 +55,7 @@ class Configuration implements ConfigurationInterface
             ->arrayNode('config')->scalarPrototype()->end()->end();
     }
 
-    private function attachAuditors(NodeBuilder $nodeBuilder): void
+    protected function attachAuditors(NodeBuilder $nodeBuilder): void
     {
         /** @var ArrayNodeDefinition $auditors */
         $auditors = $nodeBuilder->arrayNode('auditors')->isRequired()

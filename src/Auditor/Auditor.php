@@ -32,7 +32,7 @@ class Auditor
 {
     use ThrowTrait;
 
-    /** @var EntityDto[] */
+    /** @var AnnotationEntityDto[] */
     private ?array $auditedEntities;
     private ?AuditorDto $auditorDto;
 
@@ -114,24 +114,25 @@ class Auditor
         }
     }
 
-    private function save(StorageDto $storageDto): void
+    protected function save(StorageDto $storageDto): void
     {
-        $firstException = null;
+        $exceptions = [];
 
         foreach ($this->storages as $storage) {
             try {
                 $storage->save($storageDto);
             } catch (Throwable $throwable) {
-                $firstException ??= $throwable;
+                $exceptions[] = $throwable;
+                $this->getLogger()?->error('audit storage failed', ['exception' => $throwable]);
             }
         }
 
-        if (null !== $firstException) {
-            throw $firstException;
+        if ([] !== $exceptions) {
+            throw $exceptions[0];
         }
     }
 
-    private function createAuditEntities(array $entities, Operation $operation): void
+    protected function createAuditEntities(array $entities, Operation $operation): void
     {
         $unitOfWork = $this->entityManager->getUnitOfWork();
 
@@ -158,7 +159,7 @@ class Auditor
         }
     }
 
-    private function createAuditorEntityDtos(
+    protected function createAuditorEntityDtos(
         ClassMetadata $classMetadata,
         array $entityData,
         Operation $operation,
@@ -281,7 +282,7 @@ class Auditor
         return $entityDtos;
     }
 
-    private function getTableName(ClassMetadata $classMetadata): string
+    protected function getTableName(ClassMetadata $classMetadata): string
     {
         $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
         $platform = $this->entityManager->getConnection()->getDatabasePlatform();
@@ -289,7 +290,7 @@ class Auditor
         return $quoteStrategy->getTableName($classMetadata, $platform);
     }
 
-    private function getColumnName(string $field, ClassMetadata $classMetadata): string
+    protected function getColumnName(string $field, ClassMetadata $classMetadata): string
     {
         $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
         $platform = $this->entityManager->getConnection()->getDatabasePlatform();
@@ -297,7 +298,7 @@ class Auditor
         return $quoteStrategy->getColumnName($field, $classMetadata, $platform);
     }
 
-    private function getOriginalEntityData(object $entity): array
+    protected function getOriginalEntityData(object $entity): array
     {
         $classMetadata = $this->entityManager->getClassMetadata($this->annotationReadService->getEntityClass($entity));
         $originalEntityData = $this->entityManager->getUnitOfWork()->getOriginalEntityData($entity);
@@ -310,7 +311,7 @@ class Auditor
         return $originalEntityData;
     }
 
-    private function createStorageDto(): StorageDto
+    protected function createStorageDto(): StorageDto
     {
         $transaction = $this->transactionProvider->getTransaction();
 
@@ -357,7 +358,7 @@ class Auditor
         return new StorageDto($transaction, $entities);
     }
 
-    private function filterAuditedEntities(array $allEntities): array
+    protected function filterAuditedEntities(array $allEntities): array
     {
         $entities = [];
 
@@ -378,12 +379,12 @@ class Auditor
         return \array_values($entities);
     }
 
-    private function hasAuditedEntity(string $entityClass): bool
+    protected function hasAuditedEntity(string $entityClass): bool
     {
         return true === isset($this->auditedEntities[$entityClass]);
     }
 
-    private function getLogger(): ?LoggerInterface
+    protected function getLogger(): ?LoggerInterface
     {
         return $this->logger;
     }

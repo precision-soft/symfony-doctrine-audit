@@ -108,7 +108,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
         return $this->entityDtoCache[$className] = new EntityDto($className, $ignoredFields);
     }
 
-    private function hasAuditableAttribute(ReflectionClass $reflectionClass): bool
+    protected function hasAuditableAttribute(ReflectionClass $reflectionClass): bool
     {
         $attributes = $reflectionClass->getAttributes(Auditable::class);
 
@@ -121,14 +121,14 @@ class AnnotationReadService implements AnnotationReadServiceInterface
         return true === $auditable->enabled;
     }
 
-    private function hasEntityAttribute(ReflectionClass $reflectionClass): bool
+    protected function hasEntityAttribute(ReflectionClass $reflectionClass): bool
     {
         $attributes = $reflectionClass->getAttributes(Entity::class);
 
         return [] !== $attributes;
     }
 
-    private function hasIgnoreAttribute(ReflectionProperty $reflectionProperty): bool
+    protected function hasIgnoreAttribute(ReflectionProperty $reflectionProperty): bool
     {
         $attributes = $reflectionProperty->getAttributes(Ignore::class);
 

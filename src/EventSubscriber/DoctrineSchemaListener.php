@@ -102,7 +102,7 @@ class DoctrineSchemaListener
         }
     }
 
-    private function configureAuditTable(GenerateSchemaTableEventArgs $eventArgs, Schema $schema, Table $entityTable): bool
+    protected function configureAuditTable(GenerateSchemaTableEventArgs $eventArgs, Schema $schema, Table $entityTable): bool
     {
         $classMetadata = $eventArgs->getClassMetadata();
 
@@ -210,7 +210,7 @@ class DoctrineSchemaListener
         return true;
     }
 
-    private function updateType(Column $column): void
+    protected function updateType(Column $column): void
     {
         $columnType = $column->getType();
 

@@ -48,7 +48,11 @@ class Storage implements StorageInterface
 
             $connection->commit();
         } catch (Throwable $throwable) {
-            $connection->rollBack();
+            try {
+                $connection->rollBack();
+            } catch (Throwable $rollbackThrowable) {
+                $this->getLogger()?->error('rollback failed', ['exception' => $rollbackThrowable]);
+            }
 
             if (true === $throwable instanceof Exception) {
                 throw $throwable;
@@ -58,12 +62,12 @@ class Storage implements StorageInterface
         }
     }
 
-    private function getLogger(): ?LoggerInterface
+    protected function getLogger(): ?LoggerInterface
     {
         return $this->logger;
     }
 
-    private function getTransactionId(TransactionDto $transactionDto): int
+    protected function getTransactionId(TransactionDto $transactionDto): int
     {
         $connection = $this->entityManager->getConnection();
 
@@ -95,7 +99,7 @@ class Storage implements StorageInterface
         return $lastInsertId;
     }
 
-    private function saveEntity(int $transactionId, EntityDto $entityDto): void
+    protected function saveEntity(int $transactionId, EntityDto $entityDto): void
     {
         $columns = [
             $this->configuration->getTransactionIdColumnName(),

@@ -14,9 +14,9 @@ use Throwable;
 
 trait ThrowTrait
 {
-    abstract private function getLogger(): ?LoggerInterface;
+    abstract protected function getLogger(): ?LoggerInterface;
 
-    private function throw(Throwable $throwable, array $logContext = []): void
+    protected function throw(Throwable $throwable, array $logContext = []): void
     {
         $logger = $this->getLogger();
 
