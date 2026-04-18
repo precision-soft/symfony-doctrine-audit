@@ -7,17 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v3.3.0] - 2026-04-12
+## [v3.3.1] - 2026-04-14
+
+### Fixed
+
+- `Auditor::getOriginalEntityData()` — checks `reflFields[$versionField]` existence before calling `getValue()`, preventing null pointer errors on versioned entities
+- Association and field changeset entries are validated to have a 2-element structure before access, preventing array out-of-bounds errors on malformed changeset data
+- Entities with all fields ignored no longer abort the entire `postFlush` batch — a warning is logged and processing continues to the next entity
+- `FileStorage::save()` — creates the parent directory if it does not exist before calling `appendToFile()`
+
+### Changed
+
+- `Auditor::$auditedEntities` — type hint corrected to `array<string, AnnotationEntityDto>|null`
+
+## [v3.3.0] - 2026-04-13
 
 ### Fixed
 
 - `Auditor::save()` — log each storage failure individually instead of swallowing subsequent exceptions; all storages are still attempted, first exception is re-thrown
-- `Storage::save()` — wrap `rollBack()` in try/catch to preserve original exception when rollback itself fails
+- `Storage::save()` — wrap `rollBack()` in try/catch to preserve the original exception when the rollback itself fails
 - `Storage::saveEntity()` — explicit `false` check on `lastInsertId()` before casting to `int`; throws `Exception` when the driver returns `false`
 
 ### Changed
 
-- `Auditor` — `$auditedEntities` PHPDoc corrected from `@var EntityDto[]` to `@var AnnotationEntityDto[]`
+- `Auditor::$auditedEntities` PHPDoc corrected from `@var EntityDto[]` to `@var AnnotationEntityDto[]`
 - `Auditor` — all 9 `private` methods widened to `protected` (`save`, `createAuditEntities`, `createAuditorEntityDtos`, `getTableName`, `getColumnName`, `getOriginalEntityData`, `createStorageDto`, `filterAuditedEntities`, `hasAuditedEntity`)
 - `PrecisionSoftDoctrineAuditExtension` — all `private` methods widened to `protected`
 - `Configuration` — `attachStorages()`, `attachAuditors()` visibility widened from `private` to `protected`
@@ -31,127 +44,237 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `FileStorage::save()` — skip writing when entities list is empty
+- `FileStorage::save()` — skip writing when the entities list is empty
 - `Auditor::save()` — attempt all storage backends even if one fails; first exception is re-thrown after all storages have been tried
 
 ### Changed
 
-- `Storage\Doctrine\Configuration` — properties marked `readonly`; added `@param` PHPDoc
-- Removed `final` from 9 DTO/Attribute classes (FieldDto, AuditorDto, Auditor\EntityDto, Annotation\EntityDto, Storage\EntityDto, StorageDto, TransactionDto, Auditable, Ignore)
-- 4 Mockery-based test classes migrated to `AbstractTestCase` (AuditorTest, AnnotationReadServiceTest, StorageTest, DoctrineSchemaListenerTest)
+- `Storage\Doctrine\Configuration` — properties marked `readonly`; `@param` PHPDoc added
+- Removed `final` from 9 DTO/Attribute classes: `FieldDto`, `AuditorDto`, `Auditor\EntityDto`, `Annotation\EntityDto`, `Storage\EntityDto`, `StorageDto`, `TransactionDto`, `Auditable`, `Ignore`
+- Migrated 4 Mockery-based test classes to `AbstractTestCase`: `AuditorTest`, `AnnotationReadServiceTest`, `StorageTest`, `DoctrineSchemaListenerTest`
 
 ## [v3.2.2] - 2026-04-10
 
 ### Added
 
-- `DoctrineSchemaListener::postGenerateSchema()` — add `extras` column to `audit_transaction` table schema (column was missing from schema generation)
+- `DoctrineSchemaListener::postGenerateSchema()` — adds the `extras` column to the `audit_transaction` table schema (column was missing from schema generation)
 
 ### Fixed
 
-- `Auditor` — track old association field values in audit trail (previously associations always recorded `null` as old value on update)
+- `Auditor` — track old association field values in the audit trail (associations previously always recorded `null` as old value on update)
 - `Storage::getTransactionId()` — persist `extras` data in Doctrine storage (was silently ignored)
 - `Exception` — removed `final` modifier to allow extension
 
 ### Changed
 
-- `DoctrineSchemaListener::postGenerateSchemaTable()` — extract audit table configuration to private `configureAuditTable()` method
-- `AnnotationReadService` — replace `empty()` checks with explicit `[] ===` comparisons
-- `Storage::save()` / `FileStorage::buildTransaction()` — replace `empty()` checks with explicit `[] ===` / `[] !==` comparisons
-- Update `phpstan-baseline.neon`
+- `DoctrineSchemaListener::postGenerateSchemaTable()` — extracted audit table configuration into private `configureAuditTable()` method
+- `AnnotationReadService` — `empty()` checks replaced with explicit `[] ===` comparisons
+- `Storage::save()` / `FileStorage::buildTransaction()` — `empty()` checks replaced with explicit `[] ===` / `[] !==` comparisons
+- `phpstan-baseline.neon` updated
 
 ## [v3.2.1] - 2026-04-09
 
 ### Fixed
 
-- `Auditor::onFlush()` — replace `empty()` checks with explicit `[] ===` comparisons for audited entity lists
-- `Auditor::createStorageDto()` — throw `Exception` instead of silently skipping when all fields of an entity are ignored
-- `Configuration` — replace `empty()` check with explicit `[] !==` comparison for `synchronous_storages` validation
-- `DoctrineSchemaListener` — replace `isset($associationMapping->joinColumns)` guard with `instanceof ManyToOneAssociationMapping / OneToOneOwningSideMapping` check for correct owning-side detection
-- `DoctrineSchemaListener` — throw `Exception` when a primary key column has been dropped via the ignored fields list
+- `Auditor::onFlush()` — `empty()` checks replaced with explicit `[] ===` comparisons on audited entity lists
+- `Auditor::createStorageDto()` — throws `Exception` instead of silently skipping when all fields of an entity are ignored
+- `Configuration` — `empty()` check replaced with explicit `[] !==` comparison for `synchronous_storages` validation
+- `DoctrineSchemaListener` — `isset($associationMapping->joinColumns)` guard replaced with `instanceof ManyToOneAssociationMapping / OneToOneOwningSideMapping` check for correct owning-side detection
+- `DoctrineSchemaListener` — throws `Exception` when a primary key column has been dropped via the ignored fields list
 
 ## [v3.2.0] - 2026-04-07
 
 ### Breaking Changes
 
-- `AnnotationReadService::getEntityClass()` static method renamed to `resolveEntityClass()` — callers using the static form must update to `resolveEntityClass()` or inject `AnnotationReadServiceInterface` and call the instance method
+- `AnnotationReadService::getEntityClass()` — static method renamed to `resolveEntityClass()`; callers using the static form must update, or inject `AnnotationReadServiceInterface` and call the instance method
 - `Auditor`, `PrecisionSoftDoctrineAuditExtension`, `DoctrineSchemaListener` — removed `final` modifier to allow extension
 
 ### Added
 
-- `AnnotationReadServiceInterface` — new contract with `read()`, `buildEntityDto()`, and `getEntityClass()` methods; `AnnotationReadService` now implements it
+- `AnnotationReadServiceInterface` — new contract with `read()`, `buildEntityDto()`, and `getEntityClass()` methods; `AnnotationReadService` implements it
 - `AnnotationReadService::getEntityClass()` — new instance method implementing `AnnotationReadServiceInterface`
 
 ### Fixed
 
-- `DoctrineSchemaListener` — `instanceof` and `\in_array()` now use explicit `true ===` wrappers
-- `AnnotationReadService` — simplify attribute reading: replace `foreach` loop with direct `$attributes[0]` access after `empty()` guard
-- `DoctrineSchemaListener::postGenerateSchemaTable()` — resolve join column field names by iterating `associationMappings` when direct field lookup returns null
+- `DoctrineSchemaListener` — `instanceof` and `\in_array()` checks wrapped in explicit `true ===`
+- `AnnotationReadService` — attribute reading simplified: `foreach` loop replaced with direct `$attributes[0]` access after `empty()` guard
+- `DoctrineSchemaListener::postGenerateSchemaTable()` — resolves join column field names by iterating `associationMappings` when direct field lookup returns `null`
 
 ### Changed
 
-- `Auditor` — depends on `AnnotationReadServiceInterface` instead of concrete `AnnotationReadService`; replace `$entity::class` with `getEntityClass()` call for correct proxy class resolution; `fieldMapping['type']` → `fieldMapping->type` (Doctrine 3 object-style mapping); refactor `createAuditEntities()` from `array_map`/`array_filter` to explicit `foreach`
-- `DoctrineSchemaListener` — depends on `AnnotationReadServiceInterface`; use `$mapping->columnName` directly (Doctrine 3)
-- `AbstractCommand` — depends on `AnnotationReadServiceInterface`; rename `$sql` → `$sqlStatement` in loop
-- `PrecisionSoftDoctrineAuditExtension` — replace `switch` with `match` for storage type resolution; replace `empty()` checks with explicit `null === || '' ===`; rename `$storageServiceId` → `$auditorConfigServiceId`
-- `ThrowTrait` — cast `$throwable->getCode()` to `(int)` in both constructor calls
+- `Auditor` — depends on `AnnotationReadServiceInterface` instead of the concrete `AnnotationReadService`; `$entity::class` replaced with `getEntityClass()` for correct proxy-class resolution; `fieldMapping['type']` → `fieldMapping->type` (Doctrine 3 object-style mapping); `createAuditEntities()` refactored from `array_map`/`array_filter` to explicit `foreach`
+- `DoctrineSchemaListener` — depends on `AnnotationReadServiceInterface`; uses `$mapping->columnName` directly (Doctrine 3)
+- `AbstractCommand` — depends on `AnnotationReadServiceInterface`; renamed `$sql` → `$sqlStatement` in loop
+- `PrecisionSoftDoctrineAuditExtension` — `switch` replaced with `match` for storage type resolution; `empty()` checks replaced with explicit `null === || '' ===`; `$storageServiceId` renamed to `$auditorConfigServiceId`
+- `ThrowTrait` — `$throwable->getCode()` cast to `(int)` in both constructor calls
 
 ## [v3.1.1] - 2026-04-06
 
 ### Fixed
 
-- `Auditor` — replace `isset($changeSet[$field])` with `\array_key_exists()` to correctly track nullable field changes from `null` (`isset()` returns `false` for `null` values, causing audit trail data loss)
-- `Auditor::postFlush()` — `gc_collect_cycles()` no longer runs on early-return path when no audit work was done
-- `AbstractCommand::createSchemaTool()` — accept `$sourceMetadatas` as parameter to avoid duplicate `getAuditedSourceMetadatas()` call
-- `Configuration` — remove `isRequired()` from `synchronous_storages` node (defaults via `beforeNormalization`)
+- `Auditor` — `isset($changeSet[$field])` replaced with `\array_key_exists()` to correctly track nullable field changes from `null` (`isset()` returns `false` for `null` values, causing audit trail data loss)
+- `Auditor::postFlush()` — `gc_collect_cycles()` no longer runs on the early-return path when no audit work was done
+- `AbstractCommand::createSchemaTool()` — accepts `$sourceMetadatas` as parameter to avoid a duplicate `getAuditedSourceMetadatas()` call
+- `Configuration` — removed `isRequired()` from `synchronous_storages` node (defaults via `beforeNormalization`)
 
 ### Changed
 
-- `Storage::save()` — wrap in DBAL transaction with `beginTransaction()`/`commit()`/`rollBack()`
+- `Storage::save()` — wrapped in a DBAL transaction with `beginTransaction()`/`commit()`/`rollBack()`
 - `Storage::saveTransaction()` — `lastInsertId()` cast to `int` with `0 >= $lastId` check
-- `DoctrineSchemaListener` — fix `$entityTable` to `$table` variable reference, Yoda comparison style, rename `$t` to `$throwable`
-- `ThrowTrait` — rename `$t` to `$throwable`, cast error code to `(int)` in exception constructor
-- `AnnotationReadService::getEntityClass()` — replace hardcoded `__CG__` proxy string with `Doctrine\Persistence\Proxy::MARKER`
+- `DoctrineSchemaListener` — fixed `$entityTable` to `$table` variable reference, Yoda comparison style, `$t` renamed to `$throwable`
+- `ThrowTrait` — `$t` renamed to `$throwable`; error code cast to `(int)` in exception constructor
+- `AnnotationReadService::getEntityClass()` — hardcoded `__CG__` proxy string replaced with `Doctrine\Persistence\Proxy::MARKER`
 - `FileStorage` — `Filesystem` and `JsonEncoder` are now class properties instead of per-call instances
 - `AuditOperationType` class marked `final`
 - `PrecisionSoftDoctrineAuditBundle` class marked `final`
 - `Exception` class marked `final`
 - `PrecisionSoftDoctrineAuditExtension` — `static::` replaced with `self::` for constants in `final` class
-- `DoctrineSchemaListener::updateType()` — replace duplicate switch cases with single `if` condition for `AbstractEnumType`/`AbstractSetType`
+- `DoctrineSchemaListener::updateType()` — duplicate switch cases replaced with a single `if` condition for `AbstractEnumType`/`AbstractSetType`
 - `.dev/docker/entrypoint.sh` — skip `composer install` when `composer.lock` hash matches cached vendor
-- Variable naming compliance: `$sqls` -> `$sqlStatements`, `$diff` -> `$missingStorages`, `$data` -> `$originalEntityData`/`$associationData`, `$type` -> `$storageType`/`$fieldType`, `$value` -> `$relatedFieldValue`/`$fieldValue`, `$obj` -> `$throwTraitUser`, `$mock` -> `$annotationReadService`, `$result`/`$first`/`$second` -> descriptive names in tests
-- Update `phpstan-baseline.neon`
+- Variable naming compliance: `$sqls` → `$sqlStatements`, `$diff` → `$missingStorages`, `$data` → `$originalEntityData`/`$associationData`, `$type` → `$storageType`/`$fieldType`, `$value` → `$relatedFieldValue`/`$fieldValue`, `$obj` → `$throwTraitUser`, `$mock` → `$annotationReadService`, `$result`/`$first`/`$second` → descriptive names in tests
+- `phpstan-baseline.neon` updated
 
-## [v3.1.0]
+## [v3.1.0] - 2026-04-04
 
-### Breaking changes
+### Breaking Changes
 
-- Requires `precision-soft/doctrine-type` ^3.0 (was 2.*)
-- Requires `precision-soft/symfony-console` ^4.0 (was 3.*)
+- Requires `precision-soft/doctrine-type` `^3.0` (was `2.*`)
+- Requires `precision-soft/symfony-console` `^4.0` (was `3.*`)
 
 ### Fixed
 
-- `UpdateCommand` — remove extra second parameter from `getUpdateSchemaSql()` and `updateSchema()` (Doctrine ORM 3 accepts only 1 parameter)
-- `Storage::saveEntity()` — quote table and column identifiers via `DatabasePlatform::quoteIdentifier()`
-- `FileStorage` — use `FieldDto::hasOldValue()` instead of null-checking `getOldValue()` to correctly detect fields with `null` old values
-- `DoctrineSchemaListener::postGenerateSchemaTable()` — replace removed `getFieldForColumn()` with manual `fieldMappings` iteration (DBAL 4 compatibility)
+- `UpdateCommand` — removed extra second parameter from `getUpdateSchemaSql()` and `updateSchema()` (Doctrine ORM 3 accepts only 1 parameter)
+- `Storage::saveEntity()` — table and column identifiers quoted via `DatabasePlatform::quoteIdentifier()`
+- `FileStorage` — `FieldDto::hasOldValue()` used instead of null-checking `getOldValue()` to correctly detect fields with `null` old values
+- `DoctrineSchemaListener::postGenerateSchemaTable()` — replaced removed `getFieldForColumn()` with manual `fieldMappings` iteration (DBAL 4 compatibility)
 
 ### Changed
 
-- Upgrade from PHPUnit 9 to PHPUnit 11.5 via `precision-soft/symfony-phpunit: ^3.0`
-- Replace `<coverage>` with `<source>`, `<listeners>` with `<extensions>` in `phpunit.xml.dist`
-- Add `failOnRisky` and `failOnWarning` attributes to `phpunit.xml.dist`
+- Upgraded from PHPUnit 9 to PHPUnit 11.5 via `precision-soft/symfony-phpunit: ^3.0`
+- Replaced `<coverage>` with `<source>`, `<listeners>` with `<extensions>` in `phpunit.xml.dist`
+- Added `failOnRisky` and `failOnWarning` attributes to `phpunit.xml.dist`
 - PHPStan level 8 with baseline
 - Expanded test coverage (106 tests, 324 assertions)
 - Code style alignment — variable naming, Yoda conditions, explicit comparisons
 - Standardized `.dev/` infrastructure (Dockerfile, docker-compose, entrypoint, pre-commit, utility.sh, .profile)
 - Removed `squizlabs/php_codesniffer` (using php-cs-fixer only)
 - Renamed `phpunit.xml` to `phpunit.xml.dist`
-- Quote `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
+- `$COMPOSER_DEV_MODE` variable quoted in `composer.json` hook script
 - Removed `@todo` comments and trivial inline comments
 - `DateTime` → `DateTimeImmutable` in `FileStorage`
 - `FieldDto` — added `$hasOldValue` constructor parameter and `hasOldValue()` method
-- `AbstractCommand` — extracted duplicated `execute()` logic from `CreateCommand`/`UpdateCommand` into template method pattern
+- `AbstractCommand` — extracted duplicated `execute()` logic from `CreateCommand`/`UpdateCommand` into a template-method pattern
 - Removed 2 resolved entries from `phpstan-baseline.neon`
+
+## [v3.0.4] - 2026-03-20
+
+### Fixed
+
+- `Storage::getTransactionId()` — uses `DateTimeImmutable` and `Types::DATETIME_IMMUTABLE` instead of mutable `DateTime` / `Types::DATE_MUTABLE`, matching the schema definition
+- `Configuration::getIgnoredFields()` — return type tightened from `?array` to `array`
+- `Annotation\EntityDto::getClass()` and `getIgnoredFields()` — return types tightened from `?string` / `?array` to non-nullable equivalents
+- `Auditor::createAuditEntities()` — added `isset($this->auditedEntities[$entityDto->getClass()])` guard before array access
+- `DoctrineSchemaListener::updateType()` — `void` return type declared
+- `ThrowTrait::throw()` — logs `$throwable->getTraceAsString()` instead of `$throwable->getTrace()` to avoid leaking sensitive objects into logs
+
+## [v3.0.3] - 2026-03-19
+
+### Fixed
+
+- `ThrowTrait` — declares `abstract protected function getLogger(): ?LoggerInterface;` so consumers must provide a logger explicitly instead of relying on an implicit property
+- `Auditor::getLogger()`, `Storage::getLogger()`, `FileStorage::getLogger()` — concrete implementations added, returning the configured logger
+
+## [v3.0.2] - 2026-03-19
+
+### Fixed
+
+- `DoctrineSchemaListener::updateSchema()` — `null` guard added after `getFieldForColumn()` so a missing field no longer dereferences `null`
+- `Storage::getTransactionId()` — validates `lastInsertId()` is not `false`, `null`, `'0'`, or `0` before casting to `int`; throws `Exception` on invalid value
+
+## [v3.0.1] - 2026-03-19
+
+### Changed
+
+- Moved development scripts directory from `dev/` to `.dev/` (Docker config, git hooks, shared shell utilities, `.profile`, `.env`)
+- Updated `dc`, `composer.json` scripts, and pre-commit hooks to reference the new `.dev/` location
+- `composer.json` — homepage URL corrected to match the GitHub repository URL
+- `composer.lock` refreshed via `composer update`
+
+## [v3.0.0] - 2026-03-18
+
+### Breaking Changes
+
+- `AbstractEntityDto::getOperation()` — return type changed from `?string` to the new `Operation` enum
+- Removed `AbstractEntityDto::OPERATION_DELETE`, `OPERATION_INSERT`, `OPERATION_UPDATE`, and `OPERATIONS` — replace with `Operation::Delete`, `Operation::Insert`, `Operation::Update`
+- `FileStorage` JSONL format — each entity now carries an `operation` field; tracked updated values are serialized as `{"old": ..., "new": ...}` instead of a plain value
+- `AbstractCommand::__construct()` — requires `AnnotationReadService` as the 4th constructor argument
+- Schema create/update commands process only entities marked with `#[Auditable]`
+
+### Added
+
+- `Operation` enum (`Delete`, `Insert`, `Update`) replacing the previous string constants
+- Old/new value tracking for UPDATE operations — `FieldDto::getOldValue()` and `FieldDto::getValue()` carry the pair; serialized to storage accordingly
+- Optional `extras: array` on `TransactionDto` for custom metadata propagation
+- `AnnotationReadService` internal cache (`$entityDtoCache`) to avoid repeated reflection reads for the same class
+- `AbstractCommand::getAuditedSourceMetadatas()` — filters Doctrine metadata to `#[Auditable]` entities only
+
+### Changed
+
+- README updated to reflect the v3 API (enum, old/new value format, command constructor changes)
+- Code-style sweep: explicit comparisons, tightened return types, dead code removed
+
+## [v2.1.1] - 2026-03-26
+
+### Fixed
+
+- `PrecisionSoftDoctrineAuditExtension::defineStorageDoctrine()` and `defineStorageFile()` — read `logger` from the `$storage` config instead of an undefined `$auditor['logger']`, so logger wiring for configured storages no longer triggers a fatal error
+- Pre-commit hook — path/permission issues corrected
+
+### Added
+
+- `PrecisionSoftDoctrineAuditExtensionTest` — coverage for Doctrine storage, file storage, custom storage definitions, logger wiring, invalid-configuration cases, auditor service definition, and schema command registration
+
+## [v2.1.0] - 2025-01-06
+
+### Changed
+
+- `composer.json` — `precision-soft/symfony-console` constraint widened to `2.*` alongside existing `1.*`
+
+## [v2.0.0] - 2024-11-24
+
+### Changed
+
+- `composer.json` — `doctrine/dbal` constraint widened to allow `^4.0`
+- `.php-cs-fixer.dist.php` — configuration normalized for the v2 code-style baseline
+
+### Added
+
+- `AuditOperationType` — DBAL type registration for the audit operation column
+
+### Fixed
+
+- `CreateCommand`, `UpdateCommand`, `DoctrineSchemaListener` — minor alignment fixes to keep the schema pipeline working under DBAL 4
+
+## [v1.0.0] - 2024-09-17
+
+### Added
+
+- `Auditor` service — `onFlush()` / `postFlush()` pipeline that records entity inserts, updates, and deletes
+- `Attribute\Auditable` and `Attribute\Ignore` — opt-in attributes for marking audited entities and excluded fields
+- `AnnotationReadService` — reflection-based reader returning `EntityDto` instances for decorated classes
+- DTOs: `AbstractEntityDto`, `AuditorDto`, `FieldDto`, `StorageDto`, `TransactionDto`
+- Storage backends: `Storage` (Doctrine DBAL) and `FileStorage` (JSONL), both implementing the storage contract
+- `DoctrineSchemaListener` — extends the ORM schema with audit tables at generation time
+- `CreateCommand` and `UpdateCommand` — console commands managing the audit schema
+- `PrecisionSoftDoctrineAuditExtension` + `Configuration` — Symfony DI integration and config tree
+
+### Notes
+
+- Initial public release of `precision-soft/symfony-doctrine-audit`
+
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.3.1...HEAD
+
+[v3.3.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.3.0...v3.3.1
 
 [v3.3.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.2.3...v3.3.0
 
@@ -166,3 +289,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v3.1.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.1.0...v3.1.1
 
 [v3.1.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.0.4...v3.1.0
+
+[v3.0.4]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.0.3...v3.0.4
+
+[v3.0.3]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.0.2...v3.0.3
+
+[v3.0.2]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.0.1...v3.0.2
+
+[v3.0.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.0.0...v3.0.1
+
+[v3.0.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v2.1.1...v3.0.0
+
+[v2.1.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v2.1.0...v2.1.1
+
+[v2.1.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v2.0.0...v2.1.0
+
+[v2.0.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v1.0.0...v2.0.0
+
+[v1.0.0]: https://github.com/precision-soft/symfony-doctrine-audit/releases/tag/v1.0.0
