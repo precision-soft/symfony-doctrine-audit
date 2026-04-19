@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema;
 
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\SchemaTool;
 
 class CreateCommand extends AbstractCommand
@@ -19,11 +20,16 @@ class CreateCommand extends AbstractCommand
         $this->setDescription('create the database schema for the corresponding auditor');
     }
 
+    /**
+     * @param list<ClassMetadata<object>> $metadatas
+     * @return string[]
+     */
     protected function getSchemaSql(SchemaTool $schemaTool, array $metadatas): array
     {
         return $schemaTool->getCreateSchemaSql($metadatas);
     }
 
+    /** @param list<ClassMetadata<object>> $metadatas */
     protected function executeSchema(SchemaTool $schemaTool, array $metadatas): void
     {
         $schemaTool->createSchema($metadatas);

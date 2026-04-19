@@ -71,6 +71,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
         return $entities;
     }
 
+    /** @phpstan-param ClassMetadata<object> $classMetadata */
     public function buildEntityDto(ClassMetadata $classMetadata): ?EntityDto
     {
         $className = $classMetadata->getName();
@@ -108,6 +109,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
         return $this->entityDtoCache[$className] = new EntityDto($className, $ignoredFields);
     }
 
+    /** @param ReflectionClass<object> $reflectionClass */
     protected function hasAuditableAttribute(ReflectionClass $reflectionClass): bool
     {
         $attributes = $reflectionClass->getAttributes(Auditable::class);
@@ -121,6 +123,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
         return true === $auditable->enabled;
     }
 
+    /** @param ReflectionClass<object> $reflectionClass */
     protected function hasEntityAttribute(ReflectionClass $reflectionClass): bool
     {
         $attributes = $reflectionClass->getAttributes(Entity::class);

@@ -760,24 +760,24 @@
         },
         {
             "name": "precision-soft/doctrine-type",
-            "version": "v3.2.0",
+            "version": "v3.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/doctrine-type.git",
-                "reference": "0d6dd4cec213aef52ebd4a4072ca44fda17e142c"
+                "reference": "8efda173eaeff99911440b80c319a005d8d4a2ef"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/doctrine-type/zipball/0d6dd4cec213aef52ebd4a4072ca44fda17e142c",
-                "reference": "0d6dd4cec213aef52ebd4a4072ca44fda17e142c",
+                "url": "https://api.github.com/repos/precision-soft/doctrine-type/zipball/8efda173eaeff99911440b80c319a005d8d4a2ef",
+                "reference": "8efda173eaeff99911440b80c319a005d8d4a2ef",
                 "shasum": ""
             },
             "require": {
-                "doctrine/dbal": "4.*",
+                "doctrine/dbal": "^4.0",
                 "php": ">=8.2"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "3.*",
+                "friendsofphp/php-cs-fixer": "^3.0",
                 "phpstan/phpstan": "^2.0",
                 "precision-soft/symfony-phpunit": "^3.0"
             },
@@ -805,22 +805,22 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/doctrine-type/issues",
-                "source": "https://github.com/precision-soft/doctrine-type/tree/v3.2.0"
+                "source": "https://github.com/precision-soft/doctrine-type/tree/v3.4.0"
             },
-            "time": "2026-04-13T06:27:54+00:00"
+            "time": "2026-04-16T07:18:53+00:00"
         },
         {
             "name": "precision-soft/symfony-console",
-            "version": "v4.2.0",
+            "version": "v4.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-console.git",
-                "reference": "cf85dfb04c13ed82ce2aeab5848ddee6e3af982e"
+                "reference": "6db78bb4d45108539074f7f8f5031ed400ff75e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/cf85dfb04c13ed82ce2aeab5848ddee6e3af982e",
-                "reference": "cf85dfb04c13ed82ce2aeab5848ddee6e3af982e",
+                "url": "https://api.github.com/repos/precision-soft/symfony-console/zipball/6db78bb4d45108539074f7f8f5031ed400ff75e0",
+                "reference": "6db78bb4d45108539074f7f8f5031ed400ff75e0",
                 "shasum": ""
             },
             "require": {
@@ -865,9 +865,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-console/issues",
-                "source": "https://github.com/precision-soft/symfony-console/tree/v4.2.0"
+                "source": "https://github.com/precision-soft/symfony-console/tree/v4.2.3"
             },
-            "time": "2026-04-13T06:23:33+00:00"
+            "time": "2026-04-17T14:59:09+00:00"
         },
         {
             "name": "psr/cache",
@@ -1915,7 +1915,7 @@
         },
         {
             "name": "symfony/polyfill-ctype",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-ctype.git",
@@ -1974,7 +1974,7 @@
                 "portable"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-ctype/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-ctype/tree/v1.36.0"
             },
             "funding": [
                 {
@@ -1998,7 +1998,7 @@
         },
         {
             "name": "symfony/polyfill-intl-grapheme",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-grapheme.git",
@@ -2056,7 +2056,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.36.0"
             },
             "funding": [
                 {
@@ -2080,7 +2080,7 @@
         },
         {
             "name": "symfony/polyfill-intl-normalizer",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-normalizer.git",
@@ -2141,7 +2141,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.36.0"
             },
             "funding": [
                 {
@@ -2165,7 +2165,7 @@
         },
         {
             "name": "symfony/polyfill-mbstring",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
@@ -2226,7 +2226,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.36.0"
             },
             "funding": [
                 {
@@ -2250,7 +2250,7 @@
         },
         {
             "name": "symfony/polyfill-php84",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php84.git",
@@ -2306,7 +2306,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php84/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-php84/tree/v1.36.0"
             },
             "funding": [
                 {
@@ -2330,7 +2330,7 @@
         },
         {
             "name": "symfony/polyfill-php85",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php85.git",
@@ -2386,7 +2386,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php85/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-php85/tree/v1.36.0"
             },
             "funding": [
                 {
@@ -3564,11 +3564,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.46",
+            "version": "2.1.50",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/a193923fc2d6325ef4e741cf3af8c3e8f54dbf25",
-                "reference": "a193923fc2d6325ef4e741cf3af8c3e8f54dbf25",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/d452086fb4cf648c6b2d8cf3b639351f79e4f3e2",
+                "reference": "d452086fb4cf648c6b2d8cf3b639351f79e4f3e2",
                 "shasum": ""
             },
             "require": {
@@ -3613,20 +3613,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-04-01T09:25:14+00:00"
+            "time": "2026-04-17T13:10:32+00:00"
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v3.2.0",
+            "version": "v3.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "64640d23a2c8442a2a52ce93540fea935227c009"
+                "reference": "6d53c8ef9c394b40b4acc0af8a38e0eef4c013e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/64640d23a2c8442a2a52ce93540fea935227c009",
-                "reference": "64640d23a2c8442a2a52ce93540fea935227c009",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/6d53c8ef9c394b40b4acc0af8a38e0eef4c013e0",
+                "reference": "6d53c8ef9c394b40b4acc0af8a38e0eef4c013e0",
                 "shasum": ""
             },
             "require": {
@@ -3641,6 +3641,7 @@
                 "friendsofphp/php-cs-fixer": "^3.0",
                 "phpstan/phpstan": "^2.0",
                 "phpstan/phpstan-mockery": "^2.0",
+                "phpunit/phpunit": "^11.5",
                 "symfony/framework-bundle": "^7.0"
             },
             "suggest": {
@@ -3672,9 +3673,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.2.0"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.3.1"
             },
-            "time": "2026-04-13T06:20:31+00:00"
+            "time": "2026-04-16T07:14:07+00:00"
         },
         {
             "name": "react/cache",
@@ -4495,7 +4496,7 @@
         },
         {
             "name": "symfony/polyfill-php80",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php80.git",
@@ -4555,7 +4556,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php80/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-php80/tree/v1.36.0"
             },
             "funding": [
                 {
@@ -4579,7 +4580,7 @@
         },
         {
             "name": "symfony/polyfill-php81",
-            "version": "v1.34.0",
+            "version": "v1.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php81.git",
@@ -4635,7 +4636,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php81/tree/v1.34.0"
+                "source": "https://github.com/symfony/polyfill-php81/tree/v1.36.0"
             },
             "funding": [
                 {

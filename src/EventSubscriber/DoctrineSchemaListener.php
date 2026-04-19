@@ -46,6 +46,7 @@ class DoctrineSchemaListener
                 $tableIsAuditable = $this->configureAuditTable($eventArgs, $schema, $entityTable);
             } finally {
                 if (false === $tableIsAuditable) {
+                    /** @info entity is not configured for auditing — the tentative audit table is intentionally removed from the schema */
                     $schema->dropTable($entityTable->getName());
                 }
             }
@@ -172,7 +173,9 @@ class DoctrineSchemaListener
             ['notnull' => true],
         );
 
-        $primaryKeyColumns = $entityTable->getPrimaryKey()->getColumns();
+        $primaryKey = $entityTable->getPrimaryKey();
+        \assert(null !== $primaryKey);
+        $primaryKeyColumns = $primaryKey->getColumns();
         $primaryKeyColumns[] = $this->storageConfiguration->getTransactionIdColumnName();
 
         foreach ($table->getForeignKeys() as $foreignKey) {

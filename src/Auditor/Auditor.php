@@ -32,7 +32,7 @@ class Auditor
 {
     use ThrowTrait;
 
-    /** @var AnnotationEntityDto[] */
+    /** @var array<string, AnnotationEntityDto>|null */
     private ?array $auditedEntities;
     private ?AuditorDto $auditorDto;
 
@@ -93,19 +93,16 @@ class Auditor
                 return;
             }
 
-            $this->createAuditEntities(
-                $this->auditorDto->getEntitiesToInsert(),
-                Operation::Insert,
-            );
+            $entitiesToInsert = $this->auditorDto->getEntitiesToInsert();
+            $entitiesToUpdate = $this->auditorDto->getEntitiesToUpdate();
 
-            $this->createAuditEntities(
-                $this->auditorDto->getEntitiesToUpdate(),
-                Operation::Update,
-            );
+            $this->createAuditEntities($entitiesToInsert, Operation::Insert);
+            $this->createAuditEntities($entitiesToUpdate, Operation::Update);
 
             $storageDto = $this->createStorageDto();
 
             $this->save($storageDto);
+            /** @info forces a GC cycle after each flush to prevent memory accumulation in high-volume audit scenarios */
             \gc_collect_cycles();
         } catch (Throwable $throwable) {
             $this->throw($throwable);
@@ -132,8 +129,10 @@ class Auditor
         }
     }
 
+    /** @param object[] $entities */
     protected function createAuditEntities(array $entities, Operation $operation): void
     {
+        \assert(null !== $this->auditorDto);
         $unitOfWork = $this->entityManager->getUnitOfWork();
 
         foreach ($entities as $entity) {
@@ -159,6 +158,12 @@ class Auditor
         }
     }
 
+    /**
+     * @phpstan-param ClassMetadata<object> $classMetadata
+     * @param array<string, mixed> $entityData
+     * @param array<string, mixed>|null $changeSet
+     * @return array<int, AuditorEntityDto>
+     */
     protected function createAuditorEntityDtos(
         ClassMetadata $classMetadata,
         array $entityData,
@@ -242,25 +247,29 @@ class Auditor
         }
 
         if (true === $classMetadata->isInheritanceTypeSingleTable()) {
+            $discriminatorColumn = $classMetadata->discriminatorColumn;
+            \assert(null !== $discriminatorColumn);
             $auditorEntityDto->addField(
                 new FieldDto(
-                    $classMetadata->discriminatorColumn['fieldName'],
-                    $classMetadata->discriminatorColumn['name'],
-                    $classMetadata->discriminatorColumn['type'],
+                    $discriminatorColumn['fieldName'],
+                    $discriminatorColumn['name'],
+                    $discriminatorColumn['type'],
                     $classMetadata->discriminatorValue,
                 ),
             );
         }
 
         if (true === $classMetadata->isInheritanceTypeJoined()) {
-            $field = $classMetadata->discriminatorColumn['fieldName'];
+            $discriminatorColumn = $classMetadata->discriminatorColumn;
+            \assert(null !== $discriminatorColumn);
+            $field = $discriminatorColumn['fieldName'];
 
             if (true === $classMetadata->isRootEntity()) {
                 $auditorEntityDto->addField(
                     new FieldDto(
                         $field,
-                        $classMetadata->discriminatorColumn['name'],
-                        $classMetadata->discriminatorColumn['type'],
+                        $discriminatorColumn['name'],
+                        $discriminatorColumn['type'],
                         $entityData[$field] ?? null,
                     ),
                 );
@@ -282,6 +291,7 @@ class Auditor
         return $entityDtos;
     }
 
+    /** @phpstan-param ClassMetadata<object> $classMetadata */
     protected function getTableName(ClassMetadata $classMetadata): string
     {
         $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
@@ -290,6 +300,7 @@ class Auditor
         return $quoteStrategy->getTableName($classMetadata, $platform);
     }
 
+    /** @phpstan-param ClassMetadata<object> $classMetadata */
     protected function getColumnName(string $field, ClassMetadata $classMetadata): string
     {
         $quoteStrategy = $this->entityManager->getConfiguration()->getQuoteStrategy();
@@ -298,6 +309,7 @@ class Auditor
         return $quoteStrategy->getColumnName($field, $classMetadata, $platform);
     }
 
+    /** @return array<string, mixed> */
     protected function getOriginalEntityData(object $entity): array
     {
         $classMetadata = $this->entityManager->getClassMetadata($this->annotationReadService->getEntityClass($entity));
@@ -313,12 +325,14 @@ class Auditor
 
     protected function createStorageDto(): StorageDto
     {
+        \assert(null !== $this->auditorDto);
         $transaction = $this->transactionProvider->getTransaction();
 
         $entities = [];
 
         foreach ($this->auditorDto->getAuditEntities() as $entityDto) {
             if (false === isset($this->auditedEntities[$entityDto->getClass()])) {
+                /** @info entity not registered for auditing — skipped intentionally; this may indicate a configuration issue */
                 continue;
             }
 
@@ -358,6 +372,10 @@ class Auditor
         return new StorageDto($transaction, $entities);
     }
 
+    /**
+     * @param object[] $allEntities
+     * @return object[]
+     */
     protected function filterAuditedEntities(array $allEntities): array
     {
         $entities = [];

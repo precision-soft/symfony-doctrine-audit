@@ -65,6 +65,7 @@ class Configuration implements ConfigurationInterface
 
         $auditors->beforeNormalization()->always(
             function (array $auditor) {
+                /** @info all storages are synchronous by default to guarantee audit persistence before the HTTP response; override synchronous_storages to enable async processing */
                 $auditor['synchronous_storages'] ??= $auditor['storages'];
 
                 $missingStorages = \array_diff($auditor['synchronous_storages'], $auditor['storages']);

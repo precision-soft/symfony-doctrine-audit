@@ -47,6 +47,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $this->defineServices($containerBuilder, $processedConfig['auditors'], $processedConfig['storages']);
     }
 
+    /** @param array<string, mixed> $storages */
     protected function defineStorages(ContainerBuilder $containerBuilder, array $storages): void
     {
         foreach ($storages as $storageName => $storage) {
@@ -61,6 +62,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         }
     }
 
+    /** @param array<string, mixed> $storage */
     protected function defineStorageDoctrine(
         ContainerBuilder $containerBuilder,
         array $storage,
@@ -69,7 +71,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $storageType = $storage['type'];
         [$entityManager] = $this->getEntityManagerAndConnection($storage);
 
-        if (null === $entityManager || '' === $entityManager) {
+        if ('' === $entityManager) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'entity_manager', $storageType),
             );
@@ -93,6 +95,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($storageServiceId, $definition);
     }
 
+    /** @param array<string, mixed> $config */
     protected function defineStorageDoctrineConfig(
         ContainerBuilder $containerBuilder,
         string $storageName,
@@ -110,6 +113,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($storageServiceId, $definition);
     }
 
+    /** @param array<string, mixed> $storage */
     protected function defineStorageFile(
         ContainerBuilder $containerBuilder,
         array $storage,
@@ -139,6 +143,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($storageServiceId, $definition);
     }
 
+    /** @param array<string, mixed> $storage */
     protected function defineStorageCustom(
         ContainerBuilder $containerBuilder,
         array $storage,
@@ -158,6 +163,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setAlias($storageServiceId, $service);
     }
 
+    /** @param array<string, mixed> $auditors */
     protected function defineAuditors(ContainerBuilder $containerBuilder, array $auditors): void
     {
         foreach ($auditors as $auditorName => $auditor) {
@@ -192,6 +198,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         }
     }
 
+    /** @param array<string, mixed> $auditor */
     protected function defineAuditorConfig(ContainerBuilder $containerBuilder, string $auditorName, array $auditor): void
     {
         $definition = new Definition(
@@ -206,6 +213,10 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($auditorConfigServiceId, $definition);
     }
 
+    /**
+     * @param array<string, mixed> $auditors
+     * @param array<string, mixed> $storages
+     */
     protected function defineServices(ContainerBuilder $containerBuilder, array $auditors, array $storages): void
     {
         foreach ($auditors as $auditorName => $auditor) {
@@ -232,6 +243,10 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         }
     }
 
+    /**
+     * @param array<string, mixed> $auditor
+     * @param array<string, mixed> $storage
+     */
     protected function defineSchemaCommands(
         ContainerBuilder $containerBuilder,
         string $auditorName,
@@ -324,6 +339,10 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         return new Reference(\sprintf('doctrine.orm.%s_entity_manager', $name));
     }
 
+    /**
+     * @param array<string, mixed> $config
+     * @return array{string, string}
+     */
     protected function getEntityManagerAndConnection(array $config): array
     {
         $entityManager = $config['entity_manager'];

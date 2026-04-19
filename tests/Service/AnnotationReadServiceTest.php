@@ -12,13 +12,14 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata as MappingClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\Persistence\Mapping\ClassMetadata;
+use Doctrine\Persistence\Mapping\RuntimeReflectionService;
 use Mockery;
-use PrecisionSoft\Symfony\Phpunit\MockDto;
-use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\TwoEntity;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use ReflectionClass;
 use stdClass;
 
@@ -49,6 +50,7 @@ final class AnnotationReadServiceTest extends AbstractTestCase
     public function testBuildEntityDtoReturnsNullForNonAuditableEntity(): void
     {
         $nonAuditableMetadata = new MappingClassMetadata(stdClass::class);
+        $nonAuditableMetadata->initializeReflection(new RuntimeReflectionService());
 
         $entityDto = $this->annotationReadService->buildEntityDto($nonAuditableMetadata);
 
@@ -58,6 +60,7 @@ final class AnnotationReadServiceTest extends AbstractTestCase
     public function testBuildEntityDtoCachesResult(): void
     {
         $classMetadata = new MappingClassMetadata(OneEntity::class);
+        $classMetadata->initializeReflection(new RuntimeReflectionService());
 
         $firstEntityDto = $this->annotationReadService->buildEntityDto($classMetadata);
         $secondEntityDto = $this->annotationReadService->buildEntityDto($classMetadata);
@@ -74,6 +77,7 @@ final class AnnotationReadServiceTest extends AbstractTestCase
 
         foreach ($entities as $entity => $ignoredFields) {
             $classMetadata = new MappingClassMetadata($entity);
+            $classMetadata->initializeReflection(new RuntimeReflectionService());
 
             $entityDto = $this->annotationReadService->buildEntityDto($classMetadata);
 

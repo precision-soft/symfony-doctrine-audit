@@ -7,18 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v3.3.1] - 2026-04-14
-
-### Fixed
-
-- `Auditor::getOriginalEntityData()` — checks `reflFields[$versionField]` existence before calling `getValue()`, preventing null pointer errors on versioned entities
-- Association and field changeset entries are validated to have a 2-element structure before access, preventing array out-of-bounds errors on malformed changeset data
-- Entities with all fields ignored no longer abort the entire `postFlush` batch — a warning is logged and processing continues to the next entity
-- `FileStorage::save()` — creates the parent directory if it does not exist before calling `appendToFile()`
+## [v3.3.1] - 2026-04-19
 
 ### Changed
 
 - `Auditor::$auditedEntities` — type hint corrected to `array<string, AnnotationEntityDto>|null`
+- Library-wide PHPDoc typing: `@phpstan-param ClassMetadata<object>` / `ReflectionClass<object>` generics, `@throws` clauses, and `@param`/`@return` shapes added across `Auditor`, `AnnotationReadService`, `AnnotationReadServiceInterface`, `PrecisionSoftDoctrineAuditExtension`, DTOs, schema commands, and `ThrowTrait`
+- `Auditor::createAuditorEntityDtos()` — discriminator column access refactored to a local variable with `assert(null !== ...)` (static-analysis friendly, no runtime change)
+- `Auditor::createAuditEntities()` / `createStorageDto()` — added `assert(null !== $this->auditorDto)` invariants
+- `PrecisionSoftDoctrineAuditExtension` — dropped unreachable `null === $entityManager` branch
+- `FileStorage::save()` — idiomatic `[] === $storageDto->getEntities()` empty check
+- `phpstan-baseline.neon` — regenerated after type-safety improvements
 
 ## [v3.3.0] - 2026-04-13
 

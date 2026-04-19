@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\SchemaTool;
 use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Symfony\Console\Command\AbstractCommand as ConsoleAbstractCommand;
@@ -30,8 +31,13 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
         parent::__construct($name);
     }
 
+    /**
+     * @param list<ClassMetadata<object>> $metadatas
+     * @return string[]
+     */
     abstract protected function getSchemaSql(SchemaTool $schemaTool, array $metadatas): array;
 
+    /** @param list<ClassMetadata<object>> $metadatas */
     abstract protected function executeSchema(SchemaTool $schemaTool, array $metadatas): void;
 
     abstract protected function getActionVerb(): string;
@@ -43,6 +49,7 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
         $this->addOption(static::FORCE, null, InputOption::VALUE_NONE, 'run the sql');
     }
 
+    /** @return list<ClassMetadata<object>> */
     protected function getAuditedSourceMetadatas(): array
     {
         return \array_values(\array_filter(
@@ -51,6 +58,7 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
         ));
     }
 
+    /** @param list<ClassMetadata<object>> $sourceMetadatas */
     protected function createSchemaTool(array $sourceMetadatas): SchemaTool
     {
         foreach ($sourceMetadatas as $classMetadata) {

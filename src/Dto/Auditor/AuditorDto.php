@@ -59,6 +59,7 @@ class AuditorDto
         return $this;
     }
 
+    /** @return array<string, array{0: mixed, 1: mixed}>|null */
     public function getEntityChangeSet(object $entity): ?array
     {
         return $this->entityChangeSets[\spl_object_hash($entity)] ?? null;

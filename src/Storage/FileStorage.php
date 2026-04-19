@@ -34,7 +34,7 @@ class FileStorage implements StorageInterface
 
     public function save(StorageDto $storageDto): void
     {
-        if (0 === \count($storageDto->getEntities())) {
+        if ([] === $storageDto->getEntities()) {
             return;
         }
 

@@ -13,6 +13,7 @@ abstract class AbstractEntityDto
     protected Operation $operation;
     protected string $class;
     protected string $tableName;
+    /** @var FieldDto[] */
     protected array $fields;
 
     public function getOperation(): Operation

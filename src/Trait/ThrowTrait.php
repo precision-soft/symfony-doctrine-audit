@@ -16,6 +16,7 @@ trait ThrowTrait
 {
     abstract protected function getLogger(): ?LoggerInterface;
 
+    /** @param array<string, mixed> $logContext */
     protected function throw(Throwable $throwable, array $logContext = []): void
     {
         $logger = $this->getLogger();

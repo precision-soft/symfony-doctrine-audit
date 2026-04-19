@@ -10,10 +10,12 @@ namespace PrecisionSoft\Doctrine\Audit\Auditor;
 
 class Configuration
 {
+    /** @param string[] $ignoredFields */
     public function __construct(
         private readonly array $ignoredFields,
     ) {}
 
+    /** @return string[] */
     public function getIgnoredFields(): array
     {
         return $this->ignoredFields;

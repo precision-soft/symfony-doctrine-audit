@@ -9,10 +9,12 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Audit\Dto\Storage;
 
 use PrecisionSoft\Doctrine\Audit\Dto\AbstractEntityDto;
+use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 
 class EntityDto extends AbstractEntityDto
 {
+    /** @param FieldDto[] $fields */
     public function __construct(
         Operation $operation,
         string $class,

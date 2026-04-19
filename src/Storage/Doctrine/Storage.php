@@ -91,6 +91,7 @@ class Storage implements StorageInterface
             $types,
         );
 
+        /** @info non-numeric values from lastInsertId() (e.g. empty string) cast silently to 0, triggering the exception below — this is intentional */
         $lastInsertId = (int)$connection->lastInsertId();
         if (0 >= $lastInsertId) {
             throw new Exception('failed to retrieve last insert id');
