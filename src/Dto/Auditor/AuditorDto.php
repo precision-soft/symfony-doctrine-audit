@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Dto\Auditor;
 
+use Doctrine\ORM\PersistentCollection;
+
 class AuditorDto
 {
     /** @var EntityDto[] */
@@ -17,7 +19,7 @@ class AuditorDto
      * @param object[] $entitiesToDelete
      * @param object[] $entitiesToInsert
      * @param object[] $entitiesToUpdate
-     * @param array<string, array<string, array{0: mixed, 1: mixed}>> $entityChangeSets
+     * @param array<string, array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>> $entityChangeSets
      */
     public function __construct(
         private readonly array $entitiesToDelete,
@@ -59,7 +61,7 @@ class AuditorDto
         return $this;
     }
 
-    /** @return array<string, array{0: mixed, 1: mixed}>|null */
+    /** @return array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>|null */
     public function getEntityChangeSet(object $entity): ?array
     {
         return $this->entityChangeSets[\spl_object_hash($entity)] ?? null;

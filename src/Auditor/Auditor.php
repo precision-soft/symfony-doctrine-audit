@@ -13,6 +13,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\PersistentCollection;
+use LogicException;
 use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\TransactionProviderInterface;
@@ -58,6 +60,14 @@ class Auditor
      */
     public function onFlush(OnFlushEventArgs $eventArgs): void
     {
+        /**
+         * @info SDA-102 rollback safety: clear any stale auditor dto carried over from a previous flush
+         *   whose transaction rolled back (postFlush is not dispatched on rollback and therefore never
+         *   reaches its own finally-reset). Without this, the next successful flush would emit a
+         *   phantom audit row built from the previous, rolled-back change-set.
+         */
+        $this->auditorDto = null;
+
         try {
             $this->auditedEntities ??= $this->annotationReadService->read($this->entityManager);
 
@@ -82,12 +92,15 @@ class Auditor
 
             $this->createAuditEntities($entitiesToDelete, Operation::Delete);
         } catch (Throwable $throwable) {
+            $this->auditorDto = null;
             $this->throw($throwable);
         }
     }
 
     public function postFlush(PostFlushEventArgs $eventArgs): void
     {
+        $storageDto = null;
+
         try {
             if (null === $this->auditorDto) {
                 return;
@@ -105,6 +118,22 @@ class Auditor
             /** @info forces a GC cycle after each flush to prevent memory accumulation in high-volume audit scenarios */
             \gc_collect_cycles();
         } catch (Throwable $throwable) {
+            /**
+             * @info SDA-101 silent-audit-loss guard: the outer Doctrine transaction has already committed
+             *   by the time postFlush runs. If every configured audit sink fails, the audit row would be
+             *   silently lost. Re-queue-on-failure emits the full storage payload to the logger so the
+             *   record can be recovered or replayed out-of-band before re-throwing.
+             */
+            if (null !== $storageDto) {
+                $this->getLogger()?->critical(
+                    'audit_dead_letter: every configured audit storage failed; payload preserved here for manual recovery',
+                    [
+                        'exception' => $throwable,
+                        'storage_dto' => $storageDto,
+                    ],
+                );
+            }
+
             $this->throw($throwable);
         } finally {
             $this->auditorDto = null;
@@ -132,7 +161,9 @@ class Auditor
     /** @param object[] $entities */
     protected function createAuditEntities(array $entities, Operation $operation): void
     {
-        \assert(null !== $this->auditorDto);
+        if (null === $this->auditorDto) {
+            throw new LogicException('createAuditEntities called without an active auditor dto; onFlush must run first');
+        }
         $unitOfWork = $this->entityManager->getUnitOfWork();
 
         foreach ($entities as $entity) {
@@ -161,7 +192,7 @@ class Auditor
     /**
      * @phpstan-param ClassMetadata<object> $classMetadata
      * @param array<string, mixed> $entityData
-     * @param array<string, mixed>|null $changeSet
+     * @param array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>|null $changeSet
      * @return array<int, AuditorEntityDto>
      */
     protected function createAuditorEntityDtos(
@@ -191,10 +222,18 @@ class Auditor
             $isOwningSide = true === $association['isOwningSide'];
 
             if (false === ($isToOne && $isOwningSide)) {
+                /** @info to-many / inverse-side association changes are surfaced through PersistentCollection entries in the change-set and are not tracked here; see SDA-106 for full collection-change support */
                 continue;
             }
 
-            $associationData = $entityData[$field] ?? null;
+            $fieldChangeSet = $this->getScalarChangeSetEntry($changeSet, $field);
+            $hasOldValue = null !== $fieldChangeSet;
+
+            /** @info for UPDATE the entity's new association target is $fieldChangeSet[1]; $entityData is populated from UnitOfWork::getOriginalEntityData() and therefore still holds the old reference */
+            $associationData = true === $hasOldValue
+                ? $fieldChangeSet[1]
+                : ($entityData[$field] ?? null);
+
             $relatedId = null;
 
             if (null !== $associationData && true === $unitOfWork->isInIdentityMap($associationData)) {
@@ -211,11 +250,10 @@ class Auditor
 
                 $relatedFieldValue = $relatedId[$targetFieldName] ?? null;
 
-                $hasOldValue = null !== $changeSet && true === \array_key_exists($field, $changeSet);
                 $oldRelatedFieldValue = null;
 
                 if (true === $hasOldValue) {
-                    $oldAssociationData = $changeSet[$field][0];
+                    $oldAssociationData = $fieldChangeSet[0];
                     if (null !== $oldAssociationData && true === $unitOfWork->isInIdentityMap($oldAssociationData)) {
                         $oldRelatedId = $unitOfWork->getEntityIdentifier($oldAssociationData);
                         $oldRelatedFieldValue = $oldRelatedId[$targetFieldName] ?? null;
@@ -237,9 +275,15 @@ class Auditor
 
             $fieldMapping = $classMetadata->getFieldMapping($field);
             $fieldType = $fieldMapping->type;
-            $fieldValue = $entityData[$field] ?? null;
-            $hasOldValue = true === \array_key_exists($field, $changeSet ?? []);
-            $oldValue = true === $hasOldValue ? $changeSet[$field][0] : null;
+
+            $fieldChangeSet = $this->getScalarChangeSetEntry($changeSet, $field);
+            $hasOldValue = null !== $fieldChangeSet;
+
+            /** @info for UPDATE the new value lives in $fieldChangeSet[1]; $entityData is populated from UnitOfWork::getOriginalEntityData() and therefore still holds the old value */
+            $fieldValue = true === $hasOldValue
+                ? $fieldChangeSet[1]
+                : ($entityData[$field] ?? null);
+            $oldValue = true === $hasOldValue ? $fieldChangeSet[0] : null;
 
             $auditorEntityDto->addField(
                 new FieldDto($field, $columnName, $fieldType, $fieldValue, $oldValue, $hasOldValue),
@@ -291,6 +335,33 @@ class Auditor
         return $entityDtos;
     }
 
+    /**
+     * Narrows a change-set entry to the scalar {0, 1} tuple used for to-one associations and scalar fields.
+     * Returns null for absent fields or PersistentCollection entries (to-many / inverse-side) which are not tracked here.
+     *
+     * @param array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>|null $changeSet
+     * @return array{0: mixed, 1: mixed}|null
+     */
+    protected function getScalarChangeSetEntry(?array $changeSet, string $field): ?array
+    {
+        if (null === $changeSet) {
+            return null;
+        }
+
+        if (false === \array_key_exists($field, $changeSet)) {
+            return null;
+        }
+
+        $entry = $changeSet[$field];
+
+        if (true === $entry instanceof PersistentCollection) {
+            /** @info PersistentCollection change-set entries belong to to-many associations and are not tracked here; see SDA-106 */
+            return null;
+        }
+
+        return $entry;
+    }
+
     /** @phpstan-param ClassMetadata<object> $classMetadata */
     protected function getTableName(ClassMetadata $classMetadata): string
     {
@@ -325,7 +396,9 @@ class Auditor
 
     protected function createStorageDto(): StorageDto
     {
-        \assert(null !== $this->auditorDto);
+        if (null === $this->auditorDto) {
+            throw new LogicException('createStorageDto called without an active auditor dto; onFlush must run first');
+        }
         $transaction = $this->transactionProvider->getTransaction();
 
         $entities = [];

@@ -7,22 +7,10 @@ parameters:
 			path: src/Auditor/Auditor.php
 
 		-
-			message: '#^Parameter \#4 \$entityChangeSets of class PrecisionSoft\\Doctrine\\Audit\\Dto\\Auditor\\AuditorDto constructor expects array\<string, array\<string, array\{mixed, mixed\}\>\>, array\<string, array\<string, array\{mixed, mixed\}\|Doctrine\\ORM\\PersistentCollection\>\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Auditor/Auditor.php
-
-		-
 			message: '#^Strict comparison using \=\=\= between array\{\} and non\-empty\-list\<Doctrine\\DBAL\\Schema\\Column\> will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1
 			path: src/EventSubscriber/DoctrineSchemaListener.php
-
-		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 1
-			path: src/Service/AnnotationReadService.php
 
 		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Type\\AuditOperationType\:\:getValues\(\) should return array\<int, UnitEnum\> but returns array\<string\>\.$#'
@@ -33,25 +21,25 @@ parameters:
 		-
 			message: '#^Call to an undefined method Doctrine\\ORM\\EntityManagerInterface\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 22
+			count: 31
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Doctrine\\ORM\\UnitOfWork\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 47
+			count: 66
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 33
+			count: 45
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturnUsing\(\)\.$#'
 			identifier: method.notFound
-			count: 8
+			count: 11
 			path: tests/Auditor/AuditorTest.php
 
 		-
@@ -63,61 +51,67 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
 			identifier: method.notFound
-			count: 55
+			count: 77
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:with\(\)\.$#'
 			identifier: method.notFound
-			count: 24
+			count: 34
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\MockInterface\|PrecisionSoft\\Doctrine\\Audit\\Contract\\AnnotationReadServiceInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 12
+			count: 15
+			path: tests/Auditor/AuditorTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\MockInterface\|PrecisionSoft\\Doctrine\\Audit\\Contract\\StorageInterface\:\:shouldNotReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 1
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\MockInterface\|PrecisionSoft\\Doctrine\\Audit\\Contract\\StorageInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 5
+			count: 7
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\MockInterface\|PrecisionSoft\\Doctrine\\Audit\\Contract\\TransactionProviderInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 5
+			count: 7
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\MockInterface\|Psr\\Log\\LoggerInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 2
+			count: 5
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertSame\(\) with true and true will always evaluate to true\.$#'
 			identifier: staticMethod.alreadyNarrowedType
-			count: 7
+			count: 8
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Parameter \#1 \$eventArgs of method PrecisionSoft\\Doctrine\\Audit\\Auditor\\Auditor\:\:onFlush\(\) expects Doctrine\\ORM\\Event\\OnFlushEventArgs, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 12
+			count: 16
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Parameter \#1 \$eventArgs of method PrecisionSoft\\Doctrine\\Audit\\Auditor\\Auditor\:\:postFlush\(\) expects Doctrine\\ORM\\Event\\PostFlushEventArgs, Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 8
+			count: 11
 			path: tests/Auditor/AuditorTest.php
 
 		-
 			message: '#^Parameter \#1 \$logger of method PrecisionSoft\\Doctrine\\Audit\\Test\\Auditor\\AuditorTest\:\:createAuditor\(\) expects Psr\\Log\\LoggerInterface\|string\|null, Mockery\\MockInterface\|Psr\\Log\\LoggerInterface given\.$#'
 			identifier: argument.type
-			count: 2
+			count: 3
 			path: tests/Auditor/AuditorTest.php
 
 		-

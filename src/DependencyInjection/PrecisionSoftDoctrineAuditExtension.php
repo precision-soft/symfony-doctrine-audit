@@ -69,13 +69,15 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         string $storageName,
     ): void {
         $storageType = $storage['type'];
-        [$entityManager] = $this->getEntityManagerAndConnection($storage);
+        $entityManager = $storage['entity_manager'] ?? null;
 
-        if ('' === $entityManager) {
+        if (null === $entityManager || '' === $entityManager) {
             throw new Exception(
                 \sprintf('the `%s` config is mandatory for storage type `%s`', 'entity_manager', $storageType),
             );
         }
+
+        [$entityManager] = $this->getEntityManagerAndConnection($storage);
 
         $this->defineStorageDoctrineConfig($containerBuilder, $storageName, $storage['config'] ?? []);
 
@@ -345,7 +347,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
      */
     protected function getEntityManagerAndConnection(array $config): array
     {
-        $entityManager = $config['entity_manager'];
+        $entityManager = $config['entity_manager'] ?? '';
         $connection = $config['connection'] ?? $entityManager;
 
         return [$entityManager, $connection];

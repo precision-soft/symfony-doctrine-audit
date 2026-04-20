@@ -80,7 +80,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
             return $this->entityDtoCache[$className];
         }
 
-        $reflectionClass = $classMetadata->getReflectionClass() ?? new ReflectionClass($className);
+        $reflectionClass = $classMetadata->getReflectionClass();
 
         if (false === $this->hasEntityAttribute($reflectionClass)) {
             return $this->entityDtoCache[$className] = null;

@@ -712,4 +712,300 @@ final class AuditorTest extends AbstractTestCase
         $postFlushEventArgs = Mockery::mock(PostFlushEventArgs::class);
         $auditor->postFlush($postFlushEventArgs);
     }
+
+    /**
+     * Regression test for SDA-101: when the audit-db write fails in postFlush,
+     * the full payload must be preserved on the logger (dead-letter) so the
+     * audit row is recoverable rather than silently lost.
+     */
+    public function testPostFlushEmitsDeadLetterWhenAuditStorageWriteFails(): void
+    {
+        $auditor = $this->createAuditor($this->logger);
+
+        $entity = new OneEntity();
+        $entity->setId(1);
+        $entity->setName('Test');
+        $entity->setDescription('Desc');
+
+        $annotationEntityDto = new AnnotationEntityDto(OneEntity::class, []);
+
+        $this->annotationReadService->shouldReceive('read')
+            ->once()
+            ->with($this->entityManager)
+            ->andReturn([OneEntity::class => $annotationEntityDto]);
+
+        $this->unitOfWork->shouldReceive('getScheduledEntityDeletions')->once()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityInsertions')->once()->andReturn([$entity]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityUpdates')->once()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getEntityIdentifier')
+            ->with($entity)
+            ->andReturn(['id' => 1]);
+        $this->unitOfWork->shouldReceive('getOriginalEntityData')
+            ->with($entity)
+            ->andReturn(['id' => 1, 'name' => 'Test', 'description' => 'Desc']);
+
+        $classMetadata = new ClassMetadata(OneEntity::class);
+        $classMetadata->mapField(['fieldName' => 'id', 'type' => 'integer', 'columnName' => 'id']);
+        $classMetadata->mapField(['fieldName' => 'name', 'type' => 'string', 'columnName' => 'name']);
+        $classMetadata->mapField(['fieldName' => 'description', 'type' => 'string', 'columnName' => 'description']);
+        $classMetadata->table = ['name' => 'one_entity'];
+
+        $this->entityManager->shouldReceive('getClassMetadata')
+            ->with(OneEntity::class)
+            ->andReturn($classMetadata);
+
+        $quoteStrategy = new DefaultQuoteStrategy();
+        $ormConfiguration = Mockery::mock(OrmConfiguration::class);
+        $ormConfiguration->shouldReceive('getQuoteStrategy')->andReturn($quoteStrategy);
+
+        $platform = Mockery::mock(AbstractPlatform::class);
+        $platform->shouldReceive('quoteIdentifier')->andReturnUsing(fn(string $s) => $s);
+
+        $connection = Mockery::mock(Connection::class);
+        $connection->shouldReceive('getDatabasePlatform')->andReturn($platform);
+
+        $this->entityManager->shouldReceive('getConfiguration')->andReturn($ormConfiguration);
+        $this->entityManager->shouldReceive('getConnection')->andReturn($connection);
+
+        $onFlushEventArgs = Mockery::mock(OnFlushEventArgs::class);
+        $auditor->onFlush($onFlushEventArgs);
+
+        $this->transactionProvider->shouldReceive('getTransaction')
+            ->once()
+            ->andReturn(new TransactionDto('admin'));
+
+        /** @info simulate audit-db write failure */
+        $storageFailure = new RuntimeException('audit db is down');
+        $this->storage->shouldReceive('save')
+            ->once()
+            ->with(Mockery::type(StorageDto::class))
+            ->andThrow($storageFailure);
+
+        /** @info the per-storage error is logged by save() */
+        $this->logger->shouldReceive('error')
+            ->once()
+            ->with('audit storage failed', Mockery::type('array'));
+
+        /** @info dead-letter: the full StorageDto payload must be preserved on the logger at critical level */
+        $this->logger->shouldReceive('critical')
+            ->once()
+            ->with(
+                Mockery::pattern('/audit_dead_letter/'),
+                Mockery::on(function (array $context) use ($storageFailure): bool {
+                    static::assertArrayHasKey('storage_dto', $context);
+                    static::assertInstanceOf(StorageDto::class, $context['storage_dto']);
+                    static::assertArrayHasKey('exception', $context);
+                    static::assertSame($storageFailure, $context['exception']);
+
+                    return true;
+                }),
+            );
+
+        /** @info throw trait also logs at error level before re-throwing */
+        $this->logger->shouldReceive('error')
+            ->once();
+
+        $postFlushEventArgs = Mockery::mock(PostFlushEventArgs::class);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('audit db is down');
+
+        $auditor->postFlush($postFlushEventArgs);
+    }
+
+    /**
+     * Regression test for SDA-102: after a rolled-back flush the auditor dto
+     * must not carry over to the next flush, otherwise a phantom audit row
+     * would be emitted for the rolled-back change-set.
+     */
+    public function testRolledBackFlushDoesNotEmitPhantomAuditOnNextFlush(): void
+    {
+        $auditor = $this->createAuditor();
+
+        $entity = new OneEntity();
+        $entity->setId(1);
+        $entity->setName('Test');
+        $entity->setDescription('Desc');
+
+        $annotationEntityDto = new AnnotationEntityDto(OneEntity::class, []);
+
+        /** @info first onFlush: audited entities scheduled, auditor dto populated */
+        $this->annotationReadService->shouldReceive('read')
+            ->once()
+            ->with($this->entityManager)
+            ->andReturn([OneEntity::class => $annotationEntityDto]);
+
+        $this->unitOfWork->shouldReceive('getScheduledEntityDeletions')->once()->ordered()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityInsertions')->once()->ordered()->andReturn([$entity]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityUpdates')->once()->ordered()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getEntityIdentifier')
+            ->with($entity)
+            ->andReturn(['id' => 1]);
+        $this->unitOfWork->shouldReceive('getOriginalEntityData')
+            ->with($entity)
+            ->andReturn(['id' => 1, 'name' => 'Test', 'description' => 'Desc']);
+
+        $classMetadata = new ClassMetadata(OneEntity::class);
+        $classMetadata->mapField(['fieldName' => 'id', 'type' => 'integer', 'columnName' => 'id']);
+        $classMetadata->mapField(['fieldName' => 'name', 'type' => 'string', 'columnName' => 'name']);
+        $classMetadata->mapField(['fieldName' => 'description', 'type' => 'string', 'columnName' => 'description']);
+        $classMetadata->table = ['name' => 'one_entity'];
+
+        $this->entityManager->shouldReceive('getClassMetadata')
+            ->with(OneEntity::class)
+            ->andReturn($classMetadata);
+
+        $quoteStrategy = new DefaultQuoteStrategy();
+        $ormConfiguration = Mockery::mock(OrmConfiguration::class);
+        $ormConfiguration->shouldReceive('getQuoteStrategy')->andReturn($quoteStrategy);
+
+        $platform = Mockery::mock(AbstractPlatform::class);
+        $platform->shouldReceive('quoteIdentifier')->andReturnUsing(fn(string $s) => $s);
+
+        $connection = Mockery::mock(Connection::class);
+        $connection->shouldReceive('getDatabasePlatform')->andReturn($platform);
+
+        $this->entityManager->shouldReceive('getConfiguration')->andReturn($ormConfiguration);
+        $this->entityManager->shouldReceive('getConnection')->andReturn($connection);
+
+        $onFlushEventArgs = Mockery::mock(OnFlushEventArgs::class);
+        $auditor->onFlush($onFlushEventArgs);
+
+        /**
+         * @info simulate the outer transaction rolling back: postFlush is NOT dispatched by
+         *   doctrine on rollback (see UnitOfWork::commit: postFlush only runs after a successful
+         *   conn->commit()). The auditor dto must therefore be cleared by the NEXT onFlush,
+         *   not by postFlush.
+         */
+
+        /** @info second onFlush has NO audited entities; without SDA-102 fix the stale dto would still trigger postFlush processing */
+        $this->unitOfWork->shouldReceive('getScheduledEntityDeletions')->once()->ordered()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityInsertions')->once()->ordered()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityUpdates')->once()->ordered()->andReturn([]);
+
+        $secondOnFlushEventArgs = Mockery::mock(OnFlushEventArgs::class);
+        $auditor->onFlush($secondOnFlushEventArgs);
+
+        /**
+         * @info critical assertion: storage->save MUST NOT be called during the second postFlush
+         *   because the stale auditor dto from the rolled-back flush must have been reset.
+         *   Mockery will fail the test if save() is called without an expectation.
+         */
+        $this->storage->shouldNotReceive('save');
+
+        $postFlushEventArgs = Mockery::mock(PostFlushEventArgs::class);
+        $auditor->postFlush($postFlushEventArgs);
+
+        static::assertSame(true, true);
+    }
+
+    /**
+     * Regression test for SDA-111 / SDA-112: on UPDATE, FieldDto->value must
+     * carry the NEW value (from $changeSet[field][1]), not the OLD value
+     * (which is what UnitOfWork::getOriginalEntityData() returns).
+     */
+    public function testUpdateFieldDtoCarriesNewValueNotOldValue(): void
+    {
+        $auditor = $this->createAuditor();
+
+        $entity = new OneEntity();
+        $entity->setId(1);
+        $entity->setName('NewName');
+        $entity->setDescription('NewDesc');
+
+        $annotationEntityDto = new AnnotationEntityDto(OneEntity::class, []);
+
+        $this->annotationReadService->shouldReceive('read')
+            ->once()
+            ->with($this->entityManager)
+            ->andReturn([OneEntity::class => $annotationEntityDto]);
+
+        /** @info the change-set contains [OLD, NEW] tuples */
+        $changeSet = [
+            'name' => ['OldName', 'NewName'],
+            'description' => ['OldDesc', 'NewDesc'],
+        ];
+
+        $this->unitOfWork->shouldReceive('getScheduledEntityDeletions')->once()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityInsertions')->once()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityUpdates')->once()->andReturn([$entity]);
+        $this->unitOfWork->shouldReceive('getEntityChangeSet')
+            ->with($entity)
+            ->andReturn($changeSet);
+        $this->unitOfWork->shouldReceive('getEntityIdentifier')
+            ->with($entity)
+            ->andReturn(['id' => 1]);
+        /** @info getOriginalEntityData returns the OLD values; before the fix this was what landed in FieldDto->value */
+        $this->unitOfWork->shouldReceive('getOriginalEntityData')
+            ->with($entity)
+            ->andReturn(['id' => 1, 'name' => 'OldName', 'description' => 'OldDesc']);
+
+        $classMetadata = new ClassMetadata(OneEntity::class);
+        $classMetadata->mapField(['fieldName' => 'id', 'type' => 'integer', 'columnName' => 'id']);
+        $classMetadata->mapField(['fieldName' => 'name', 'type' => 'string', 'columnName' => 'name']);
+        $classMetadata->mapField(['fieldName' => 'description', 'type' => 'string', 'columnName' => 'description']);
+        $classMetadata->table = ['name' => 'one_entity'];
+
+        $this->entityManager->shouldReceive('getClassMetadata')
+            ->with(OneEntity::class)
+            ->andReturn($classMetadata);
+
+        $quoteStrategy = new DefaultQuoteStrategy();
+        $ormConfiguration = Mockery::mock(OrmConfiguration::class);
+        $ormConfiguration->shouldReceive('getQuoteStrategy')->andReturn($quoteStrategy);
+
+        $platform = Mockery::mock(AbstractPlatform::class);
+        $platform->shouldReceive('quoteIdentifier')->andReturnUsing(fn(string $s) => $s);
+
+        $connection = Mockery::mock(Connection::class);
+        $connection->shouldReceive('getDatabasePlatform')->andReturn($platform);
+
+        $this->entityManager->shouldReceive('getConfiguration')->andReturn($ormConfiguration);
+        $this->entityManager->shouldReceive('getConnection')->andReturn($connection);
+
+        $onFlushEventArgs = Mockery::mock(OnFlushEventArgs::class);
+        $auditor->onFlush($onFlushEventArgs);
+
+        $this->transactionProvider->shouldReceive('getTransaction')
+            ->once()
+            ->andReturn(new TransactionDto('admin'));
+
+        $captured = null;
+        $this->storage->shouldReceive('save')
+            ->once()
+            ->with(Mockery::on(function (StorageDto $storageDto) use (&$captured): bool {
+                $captured = $storageDto;
+
+                return true;
+            }));
+
+        $postFlushEventArgs = Mockery::mock(PostFlushEventArgs::class);
+        $auditor->postFlush($postFlushEventArgs);
+
+        static::assertNotNull($captured);
+        $entities = $captured->getEntities();
+        static::assertCount(1, $entities);
+
+        $byName = [];
+        foreach ($entities[0]->getFields() as $fieldDto) {
+            $byName[$fieldDto->getName()] = $fieldDto;
+        }
+
+        static::assertArrayHasKey('name', $byName);
+        static::assertArrayHasKey('description', $byName);
+
+        /** @info SDA-112: scalar field new-value on UPDATE must be $changeSet[field][1] */
+        static::assertSame('NewName', $byName['name']->getValue(), 'FieldDto->value must be the new value, not the old one');
+        static::assertSame('OldName', $byName['name']->getOldValue());
+        static::assertSame(true, $byName['name']->hasOldValue());
+
+        static::assertSame('NewDesc', $byName['description']->getValue(), 'FieldDto->value must be the new value, not the old one');
+        static::assertSame('OldDesc', $byName['description']->getOldValue());
+        static::assertSame(true, $byName['description']->hasOldValue());
+
+        /** @info fields not in change-set (id) fall back to entityData and retain no old value marker */
+        static::assertArrayHasKey('id', $byName);
+        static::assertSame(1, $byName['id']->getValue());
+        static::assertSame(false, $byName['id']->hasOldValue());
+    }
 }

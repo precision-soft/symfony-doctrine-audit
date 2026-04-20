@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.4.0] - 2026-04-20 - Rollback safety, dead-letter logging, and UPDATE new-value correctness
+
+### Fixed
+
+- `Auditor::postFlush()` — added a dead-letter branch: when every configured audit storage throws, the full `StorageDto` payload is emitted to the logger at `critical` (`audit_dead_letter` message with `exception` + `storage_dto` keys) before the exception is re-thrown, so the audit row is recoverable instead of silently lost. The outer Doctrine transaction has already committed by the time `postFlush` runs, which is what makes the silent-loss window possible (SDA-101)
+- `Auditor::onFlush()` — clears `$this->auditorDto` both at entry and in the catch path so a rolled-back previous flush can no longer seed a phantom audit row on the next successful flush. Doctrine does not dispatch `postFlush` on rollback, so the previous flush's `finally`-reset never ran; the entry clear replaces it (SDA-102)
+- `Auditor::createAuditorEntityDtos()` — for `UPDATE` operations, the new scalar and to-one-association values are now read from `$changeSet[$field][1]` instead of `$entityData[$field]`. `UnitOfWork::getOriginalEntityData()` populates `$entityData` with the *pre-update* snapshot, so the old code was silently storing the old value as the new value on updates (SDA-103)
+- `PrecisionSoftDoctrineAuditExtension::defineStorageDoctrine()` — validates `entity_manager` before calling `getEntityManagerAndConnection()`; previously the PHP-level "undefined index" was surfaced as a fatal instead of the descriptive `the `entity_manager` config is mandatory for storage type `<type>`` exception
+- `PrecisionSoftDoctrineAuditExtension::getEntityManagerAndConnection()` — `$config['entity_manager']` access guarded with `?? ''` so callers that pre-validate (or accept the empty default) no longer trip undefined-index notices
+
+### Changed
+
+- `Auditor::createAuditEntities()` / `createStorageDto()` — replaced the `\assert(null !== $this->auditorDto)` narrowing with explicit `throw new LogicException(...)` statements; `\assert()` is a no-op under `zend.assertions=-1` in production, so the assert-only form could surface a later `->entitiesToInsert` access as a less helpful null-dereference error
+- `Auditor::createAuditorEntityDtos()` — `$changeSet` PHPDoc widened from `array<string, array{0: mixed, 1: mixed}|null>` to `array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>|null` so static analysis sees the real shape (Doctrine reports to-many associations as `PersistentCollection` entries inside the change-set)
+- `AuditorDto::$entityChangeSets` + `getEntityChangeSet()` — PHPDoc widened to the same `array{0: mixed, 1: mixed}|PersistentCollection<int, object>` shape, matching what `UnitOfWork::getEntityChangeSet()` actually produces
+- `AnnotationReadService::buildEntityDto()` — dropped `?? new ReflectionClass($className)` fallback; `ClassMetadata::getReflectionClass()` is non-nullable in the Doctrine ORM versions this library supports
+- `phpstan-baseline.neon` — regenerated after the type-safety improvements above
+
+### Added
+
+- `Auditor::getScalarChangeSetEntry()` — new protected helper that narrows a change-set entry to the scalar `array{0: mixed, 1: mixed}` tuple used for to-one associations and scalar fields; returns `null` for absent fields and for `PersistentCollection` entries (to-many / inverse-side are not tracked by this auditor — see SDA-106 for full collection-change support)
+- `tests/Auditor/AuditorTest.php` — three new regression tests totalling 296 lines:
+    - `testPostFlushEmitsDeadLetterWhenAuditStorageWriteFails` — SDA-101 guard
+    - `testRolledBackFlushDoesNotEmitPhantomAuditOnNextFlush` — SDA-102 guard
+    - `testUpdateFieldDtoCarriesNewValueNotOldValue` — SDA-103 guard
+
 ## [v3.3.1] - 2026-04-19
 
 ### Changed
@@ -271,7 +297,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/symfony-doctrine-audit`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.3.1...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.0...HEAD
+
+[v3.4.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.3.1...v3.4.0
 
 [v3.3.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.3.0...v3.3.1
 
