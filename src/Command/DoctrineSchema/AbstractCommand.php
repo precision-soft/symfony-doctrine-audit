@@ -98,9 +98,9 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
         } catch (Throwable $throwable) {
             $this->error($throwable->getMessage(), $throwable, true);
 
-            return self::FAILURE;
+            return static::FAILURE;
         }
 
-        return self::SUCCESS;
+        return static::SUCCESS;
     }
 }

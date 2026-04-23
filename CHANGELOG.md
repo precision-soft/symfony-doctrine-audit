@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.4.2] - 2026-04-23 - Extend Late Static Binding to Configuration and AbstractCommand
+
+### Fixed
+
+- `Configuration::attachStorages()` — changed `self::TYPE_DOCTRINE`, `self::TYPE_FILE`, `self::TYPE_CUSTOM` to `static::` — class has `protected` methods and is subclassable, so `self::` would bypass overridden constants in subclasses
+- `AbstractCommand::execute()` — changed `self::FAILURE` and `self::SUCCESS` to `static::` — abstract class with public inherited constants from Symfony `Command`; the v3.4.1 pass fixed `self::FORCE` but missed `FAILURE` and `SUCCESS`
+- `CHANGELOG.md` — backfilled v2.1.1 entry: `composer.json` version field was corrected from `v2.1.0` to `v2.1.1`
+
 ## [v3.4.1] - 2026-04-23 - Fix Exception Policy, Static Binding, and Inline FQN
 
 ### Fixed
@@ -318,7 +326,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/symfony-doctrine-audit`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.1...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.2...HEAD
+
+[v3.4.2]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.1...v3.4.2
 
 [v3.4.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.0...v3.4.1
 

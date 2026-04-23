@@ -42,7 +42,7 @@ class Configuration implements ConfigurationInterface
             ->useAttributeAsKey('name')
             ->arrayPrototype();
 
-        $types = [self::TYPE_DOCTRINE, self::TYPE_FILE, self::TYPE_CUSTOM];
+        $types = [static::TYPE_DOCTRINE, static::TYPE_FILE, static::TYPE_CUSTOM];
 
         $storages->children()
             ->scalarNode('name')->end()
