@@ -54,7 +54,7 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
     {
         return \array_values(\array_filter(
             $this->sourceEntityManager->getMetadataFactory()->getAllMetadata(),
-            fn($classMetadata) => null !== $this->annotationReadService->buildEntityDto($classMetadata),
+            fn(ClassMetadata $classMetadata) => null !== $this->annotationReadService->buildEntityDto($classMetadata),
         ));
     }
 
@@ -88,7 +88,7 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
 
             $this->writeln('----------------------------------------------------------------------');
 
-            if (true === $input->getOption(self::FORCE)) {
+            if (true === $input->getOption(static::FORCE)) {
                 $this->writeln(\sprintf('%s database schema', $this->getActionVerb()));
 
                 $this->executeSchema($schemaTool, $sourceMetadatas);

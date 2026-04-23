@@ -12,6 +12,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
+use ReflectionException;
 
 interface AnnotationReadServiceInterface
 {
@@ -24,7 +25,7 @@ interface AnnotationReadServiceInterface
 
     /**
      * @phpstan-param ClassMetadata<object> $classMetadata
-     * @throws \ReflectionException if the entity class cannot be reflected (e.g. class does not exist)
+     * @throws ReflectionException if the entity class cannot be reflected (e.g. class does not exist)
      */
     public function buildEntityDto(ClassMetadata $classMetadata): ?EntityDto;
 

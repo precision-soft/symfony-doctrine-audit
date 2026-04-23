@@ -25,7 +25,6 @@ use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration as StorageConfiguration;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
-use RuntimeException;
 use stdClass;
 
 /**
@@ -94,7 +93,7 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         $this->annotationReadService->shouldReceive('buildEntityDto')
             ->once()
-            ->andThrow(new RuntimeException('metadata failure'));
+            ->andThrow(new Exception('metadata failure'));
 
         $schema = Mockery::mock(Schema::class);
         $schema->shouldReceive('dropTable')->once();
@@ -267,7 +266,7 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         $schema = Mockery::mock(Schema::class);
         $schema->shouldReceive('createTable')
-            ->andThrow(new RuntimeException('create failed'));
+            ->andThrow(new Exception('create failed'));
 
         $eventArgs = Mockery::mock(GenerateSchemaEventArgs::class);
         $eventArgs->shouldReceive('getSchema')->andReturn($schema);

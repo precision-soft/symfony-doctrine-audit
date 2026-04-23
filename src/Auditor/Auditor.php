@@ -14,7 +14,6 @@ use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\PersistentCollection;
-use LogicException;
 use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\TransactionProviderInterface;
@@ -162,7 +161,7 @@ class Auditor
     protected function createAuditEntities(array $entities, Operation $operation): void
     {
         if (null === $this->auditorDto) {
-            throw new LogicException('createAuditEntities called without an active auditor dto; onFlush must run first');
+            throw new Exception('createAuditEntities called without an active auditor dto; onFlush must run first');
         }
         $unitOfWork = $this->entityManager->getUnitOfWork();
 
@@ -336,9 +335,6 @@ class Auditor
     }
 
     /**
-     * Narrows a change-set entry to the scalar {0, 1} tuple used for to-one associations and scalar fields.
-     * Returns null for absent fields or PersistentCollection entries (to-many / inverse-side) which are not tracked here.
-     *
      * @param array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>|null $changeSet
      * @return array{0: mixed, 1: mixed}|null
      */
@@ -397,7 +393,7 @@ class Auditor
     protected function createStorageDto(): StorageDto
     {
         if (null === $this->auditorDto) {
-            throw new LogicException('createStorageDto called without an active auditor dto; onFlush must run first');
+            throw new Exception('createStorageDto called without an active auditor dto; onFlush must run first');
         }
         $transaction = $this->transactionProvider->getTransaction();
 

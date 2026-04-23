@@ -40,7 +40,7 @@ class AnnotationReadService implements AnnotationReadServiceInterface
 
     public function getEntityClass(object $entityOrProxy): string
     {
-        return self::resolveEntityClass($entityOrProxy);
+        return static::resolveEntityClass($entityOrProxy);
     }
 
     /** @return EntityDto[] */

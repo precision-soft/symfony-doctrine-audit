@@ -10,7 +10,6 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Exception;
 
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
-use RuntimeException;
 
 /**
  * @internal
@@ -34,7 +33,7 @@ final class ExceptionTest extends TestCase
 
     public function testPreviousException(): void
     {
-        $previous = new RuntimeException('original');
+        $previous = new Exception('original');
         $exception = new Exception('wrapped', 0, $previous);
 
         static::assertSame($previous, $exception->getPrevious());

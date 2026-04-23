@@ -119,7 +119,7 @@ class Storage implements StorageInterface
         $platform = $connection->getDatabasePlatform();
 
         $quotedTable = $platform->quoteIdentifier($entityDto->getTableName());
-        $quotedColumns = \array_map(fn($columnName) => $platform->quoteIdentifier($columnName), $columns);
+        $quotedColumns = \array_map(fn(string $columnName) => $platform->quoteIdentifier($columnName), $columns);
 
         $sqlStatement = \sprintf(
             'INSERT INTO %s (%s) VALUES (%s)',

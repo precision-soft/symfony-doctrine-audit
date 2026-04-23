@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v3.4.0] - 2026-04-20 - Rollback safety, dead-letter logging, and UPDATE new-value correctness
+## [v3.4.1] - 2026-04-23 - Fix Exception Policy, Static Binding, and Inline FQN
+
+### Fixed
+
+- `Auditor::createAuditEntities()` and `Auditor::createStorageDto()` — replaced raw `LogicException` guards with the project-specific `Exception`; `LogicException` was imported from the global namespace, bypassing the library's own catchable exception type
+- `AnnotationReadService::getEntityClass()` — changed `self::resolveEntityClass()` to `static::resolveEntityClass()` so subclasses can override the static method; `self::` always resolves to the declaring class and prevents runtime polymorphism in non-final classes
+- `AbstractCommand::execute()` — changed `self::FORCE` to `static::FORCE` for consistency with `configure()` (line 49 already used `static::`) and to respect subclass constant overrides
+- `AnnotationReadServiceInterface` — replaced inline `\ReflectionException` FQN in `@throws` with a `use ReflectionException;` import per project convention (all class references must go through `use` at the top of the file)
+
+### Changed
+
+- `Auditor::getScalarChangeSetEntry()` — removed two-line prose PHPDoc description (redundant with method name and type signatures); `@param`/`@return` annotations retained for static analysis
+- `Storage::saveEntity()` — typed closure parameter `fn($columnName)` → `fn(string $columnName)`
+- `AbstractCommand::getAuditedSourceMetadatas()` — typed closure parameter `fn($classMetadata)` → `fn(ClassMetadata $classMetadata)`
+- `AuditorTest`, `StorageTest`, `DoctrineSchemaListenerTest`, `ExceptionTest`, `ThrowTraitTest` — replaced `RuntimeException` / `InvalidArgumentException` stubs with the project-specific `Exception`; `\Throwable` inline FQN in `ThrowTraitTest` replaced with a `use Throwable` import; `phpstan-baseline.neon` updated for the shifted anonymous-class line reference
+
+## [v3.4.0] - 2026-04-20 - Rollback Safety, Dead-Letter Logging, and UPDATE New-Value Correctness
 
 ### Fixed
 
@@ -33,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `testRolledBackFlushDoesNotEmitPhantomAuditOnNextFlush` — SDA-102 guard
     - `testUpdateFieldDtoCarriesNewValueNotOldValue` — SDA-103 guard
 
-## [v3.3.1] - 2026-04-19
+## [v3.3.1] - 2026-04-19 - PHPDoc Typing, Static-Analysis Invariants, and Named Configuration Constants
 
 ### Changed
 
@@ -45,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FileStorage::save()` — idiomatic `[] === $storageDto->getEntities()` empty check
 - `phpstan-baseline.neon` — regenerated after type-safety improvements
 
-## [v3.3.0] - 2026-04-13
+## [v3.3.0] - 2026-04-13 - Multi-storage Error Handling, Rollback Safety, and Visibility Widening
 
 ### Fixed
 
@@ -65,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ThrowTrait` — abstract `getLogger()` and `throw()` visibility widened from `private` to `protected`
 - `DoctrineSchemaListener` — `configureAuditTable()`, `updateType()` visibility widened from `private` to `protected`
 
-## [v3.2.3] - 2026-04-11
+## [v3.2.3] - 2026-04-11 - Remove Final From DTOs, Harden Storage Save, and Migrate Tests to AbstractTestCase
 
 ### Fixed
 
@@ -78,11 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `final` from 9 DTO/Attribute classes: `FieldDto`, `AuditorDto`, `Auditor\EntityDto`, `Annotation\EntityDto`, `Storage\EntityDto`, `StorageDto`, `TransactionDto`, `Auditable`, `Ignore`
 - Migrated 4 Mockery-based test classes to `AbstractTestCase`: `AuditorTest`, `AnnotationReadServiceTest`, `StorageTest`, `DoctrineSchemaListenerTest`
 
-## [v3.2.2] - 2026-04-10
-
-### Added
-
-- `DoctrineSchemaListener::postGenerateSchema()` — adds the `extras` column to the `audit_transaction` table schema (column was missing from schema generation)
+## [v3.2.2] - 2026-04-10 - Add Extras Schema Column, Persist Extras, and Track Association Old Values
 
 ### Fixed
 
@@ -97,7 +109,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Storage::save()` / `FileStorage::buildTransaction()` — `empty()` checks replaced with explicit `[] ===` / `[] !==` comparisons
 - `phpstan-baseline.neon` updated
 
-## [v3.2.1] - 2026-04-09
+### Added
+
+- `DoctrineSchemaListener::postGenerateSchema()` — adds the `extras` column to the `audit_transaction` table schema (column was missing from schema generation)
+
+## [v3.2.1] - 2026-04-09 - Harden Schema Listener and Audit Storage Validation
 
 ### Fixed
 
@@ -107,17 +123,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DoctrineSchemaListener` — `isset($associationMapping->joinColumns)` guard replaced with `instanceof ManyToOneAssociationMapping / OneToOneOwningSideMapping` check for correct owning-side detection
 - `DoctrineSchemaListener` — throws `Exception` when a primary key column has been dropped via the ignored fields list
 
-## [v3.2.0] - 2026-04-07
+## [v3.2.0] - 2026-04-07 - Introduce AnnotationReadServiceInterface, Remove Final Modifiers, and Align Doctrine 3 Mappings
 
 ### Breaking Changes
 
 - `AnnotationReadService::getEntityClass()` — static method renamed to `resolveEntityClass()`; callers using the static form must update, or inject `AnnotationReadServiceInterface` and call the instance method
 - `Auditor`, `PrecisionSoftDoctrineAuditExtension`, `DoctrineSchemaListener` — removed `final` modifier to allow extension
-
-### Added
-
-- `AnnotationReadServiceInterface` — new contract with `read()`, `buildEntityDto()`, and `getEntityClass()` methods; `AnnotationReadService` implements it
-- `AnnotationReadService::getEntityClass()` — new instance method implementing `AnnotationReadServiceInterface`
 
 ### Fixed
 
@@ -133,7 +144,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PrecisionSoftDoctrineAuditExtension` — `switch` replaced with `match` for storage type resolution; `empty()` checks replaced with explicit `null === || '' ===`; `$storageServiceId` renamed to `$auditorConfigServiceId`
 - `ThrowTrait` — `$throwable->getCode()` cast to `(int)` in both constructor calls
 
-## [v3.1.1] - 2026-04-06
+### Added
+
+- `AnnotationReadServiceInterface` — new contract with `read()`, `buildEntityDto()`, and `getEntityClass()` methods; `AnnotationReadService` implements it
+- `AnnotationReadService::getEntityClass()` — new instance method implementing `AnnotationReadServiceInterface`
+
+## [v3.1.1] - 2026-04-06 - Preserve Nullable Old Values in Audit Trail and Deduplicate Schema Listener Switches
 
 ### Fixed
 
@@ -159,7 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Variable naming compliance: `$sqls` → `$sqlStatements`, `$diff` → `$missingStorages`, `$data` → `$originalEntityData`/`$associationData`, `$type` → `$storageType`/`$fieldType`, `$value` → `$relatedFieldValue`/`$fieldValue`, `$obj` → `$throwTraitUser`, `$mock` → `$annotationReadService`, `$result`/`$first`/`$second` → descriptive names in tests
 - `phpstan-baseline.neon` updated
 
-## [v3.1.0] - 2026-04-04
+## [v3.1.0] - 2026-04-04 - Upgrade to doctrine-type 3.0, symfony-console 4.0, and PHPUnit 11.5
 
 ### Breaking Changes
 
@@ -191,7 +207,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractCommand` — extracted duplicated `execute()` logic from `CreateCommand`/`UpdateCommand` into a template-method pattern
 - Removed 2 resolved entries from `phpstan-baseline.neon`
 
-## [v3.0.4] - 2026-03-20
+### Added
+
+- PHPStan level 8 with baseline
+
+## [v3.0.4] - 2026-03-20 - Correct DateTime Storage Type and Tighten Return Types
 
 ### Fixed
 
@@ -202,21 +222,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DoctrineSchemaListener::updateType()` — `void` return type declared
 - `ThrowTrait::throw()` — logs `$throwable->getTraceAsString()` instead of `$throwable->getTrace()` to avoid leaking sensitive objects into logs
 
-## [v3.0.3] - 2026-03-19
+## [v3.0.3] - 2026-03-19 - Enforce Logger Contract in ThrowTrait
 
 ### Fixed
 
 - `ThrowTrait` — declares `abstract protected function getLogger(): ?LoggerInterface;` so consumers must provide a logger explicitly instead of relying on an implicit property
 - `Auditor::getLogger()`, `Storage::getLogger()`, `FileStorage::getLogger()` — concrete implementations added, returning the configured logger
 
-## [v3.0.2] - 2026-03-19
+## [v3.0.2] - 2026-03-19 - Guard Null Field in DoctrineSchemaListener and Validate lastInsertId
 
 ### Fixed
 
 - `DoctrineSchemaListener::updateSchema()` — `null` guard added after `getFieldForColumn()` so a missing field no longer dereferences `null`
 - `Storage::getTransactionId()` — validates `lastInsertId()` is not `false`, `null`, `'0'`, or `0` before casting to `int`; throws `Exception` on invalid value
 
-## [v3.0.1] - 2026-03-19
+## [v3.0.1] - 2026-03-19 - Move Dev Scripts to .dev and Update Dependencies
 
 ### Changed
 
@@ -225,7 +245,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `composer.json` — homepage URL corrected to match the GitHub repository URL
 - `composer.lock` refreshed via `composer update`
 
-## [v3.0.0] - 2026-03-18
+## [v3.0.0] - 2026-03-18 - Introduce Operation Enum, Old/New Value Tracking, and Extras on TransactionDto
 
 ### Breaking Changes
 
@@ -235,6 +255,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractCommand::__construct()` — requires `AnnotationReadService` as the 4th constructor argument
 - Schema create/update commands process only entities marked with `#[Auditable]`
 
+### Changed
+
+- README updated to reflect the v3 API (enum, old/new value format, command constructor changes)
+- Code-style sweep: explicit comparisons, tightened return types, dead code removed
+
 ### Added
 
 - `Operation` enum (`Delete`, `Insert`, `Update`) replacing the previous string constants
@@ -243,12 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AnnotationReadService` internal cache (`$entityDtoCache`) to avoid repeated reflection reads for the same class
 - `AbstractCommand::getAuditedSourceMetadatas()` — filters Doctrine metadata to `#[Auditable]` entities only
 
-### Changed
-
-- README updated to reflect the v3 API (enum, old/new value format, command constructor changes)
-- Code-style sweep: explicit comparisons, tightened return types, dead code removed
-
-## [v2.1.1] - 2026-03-26
+## [v2.1.1] - 2026-03-26 - Fix Storage Logger Wiring and Pre-commit Hook Paths
 
 ### Fixed
 
@@ -259,13 +279,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `PrecisionSoftDoctrineAuditExtensionTest` — coverage for Doctrine storage, file storage, custom storage definitions, logger wiring, invalid-configuration cases, auditor service definition, and schema command registration
 
-## [v2.1.0] - 2025-01-06
+## [v2.1.0] - 2025-01-06 - Widen symfony-console Constraint to 2.*
 
 ### Changed
 
 - `composer.json` — `precision-soft/symfony-console` constraint widened to `2.*` alongside existing `1.*`
 
-## [v2.0.0] - 2024-11-24
+## [v2.0.0] - 2024-11-24 - Add DBAL 4 Support and AuditOperationType Registration
+
+### Fixed
+
+- `CreateCommand`, `UpdateCommand`, `DoctrineSchemaListener` — minor alignment fixes to keep the schema pipeline working under DBAL 4
 
 ### Changed
 
@@ -276,11 +300,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AuditOperationType` — DBAL type registration for the audit operation column
 
-### Fixed
-
-- `CreateCommand`, `UpdateCommand`, `DoctrineSchemaListener` — minor alignment fixes to keep the schema pipeline working under DBAL 4
-
-## [v1.0.0] - 2024-09-17
+## [v1.0.0] - 2024-09-17 - Initial Public Release
 
 ### Added
 
@@ -297,7 +317,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/symfony-doctrine-audit`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.1...HEAD
+
+[v3.4.1]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.0...v3.4.1
 
 [v3.4.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.3.1...v3.4.0
 

@@ -24,7 +24,6 @@ use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Storage;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
-use RuntimeException;
 use stdClass;
 
 /**
@@ -224,7 +223,7 @@ final class StorageTest extends AbstractTestCase
 
         $this->connection->shouldReceive('executeStatement')
             ->once()
-            ->andThrow(new RuntimeException('SQL error'));
+            ->andThrow(new Exception('SQL error'));
 
         $logger->shouldReceive('error')
             ->once()
@@ -306,7 +305,7 @@ final class StorageTest extends AbstractTestCase
 
         $this->connection->shouldReceive('executeStatement')
             ->once()
-            ->andThrow(new RuntimeException('SQL error'));
+            ->andThrow(new Exception('SQL error'));
 
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('SQL error');

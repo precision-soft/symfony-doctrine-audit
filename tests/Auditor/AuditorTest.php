@@ -32,7 +32,6 @@ use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
-use RuntimeException;
 use stdClass;
 
 /**
@@ -354,7 +353,7 @@ final class AuditorTest extends AbstractTestCase
 
         $this->annotationReadService->shouldReceive('read')
             ->once()
-            ->andThrow(new RuntimeException('read failed'));
+            ->andThrow(new Exception('read failed'));
 
         $this->logger->shouldReceive('error')
             ->once()
@@ -377,7 +376,7 @@ final class AuditorTest extends AbstractTestCase
 
         $this->annotationReadService->shouldReceive('read')
             ->once()
-            ->andThrow(new RuntimeException('read failed'));
+            ->andThrow(new Exception('read failed'));
 
         $eventArgs = Mockery::mock(OnFlushEventArgs::class);
 
@@ -427,7 +426,7 @@ final class AuditorTest extends AbstractTestCase
             ->andReturn(['id' => 1, 'name' => 'Test', 'description' => 'Desc']);
 
         $this->unitOfWork->shouldReceive('getEntityIdentifier')
-            ->andThrow(new RuntimeException('identifier failed'));
+            ->andThrow(new Exception('identifier failed'));
 
         $this->logger->shouldReceive('error')
             ->once();
@@ -775,7 +774,7 @@ final class AuditorTest extends AbstractTestCase
             ->andReturn(new TransactionDto('admin'));
 
         /** @info simulate audit-db write failure */
-        $storageFailure = new RuntimeException('audit db is down');
+        $storageFailure = new Exception('audit db is down');
         $this->storage->shouldReceive('save')
             ->once()
             ->with(Mockery::type(StorageDto::class))
