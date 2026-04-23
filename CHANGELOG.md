@@ -274,6 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `PrecisionSoftDoctrineAuditExtension::defineStorageDoctrine()` and `defineStorageFile()` — read `logger` from the `$storage` config instead of an undefined `$auditor['logger']`, so logger wiring for configured storages no longer triggers a fatal error
 - Pre-commit hook — path/permission issues corrected
+- `composer.json` — version field corrected from `v2.1.0` to `v2.1.1`
 
 ### Added
 
