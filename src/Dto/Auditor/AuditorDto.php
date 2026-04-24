@@ -13,7 +13,7 @@ use Doctrine\ORM\PersistentCollection;
 class AuditorDto
 {
     /** @var EntityDto[] */
-    private array $auditEntities;
+    protected array $auditEntities;
 
     /**
      * @param object[] $entitiesToDelete
@@ -22,10 +22,10 @@ class AuditorDto
      * @param array<string, array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>> $entityChangeSets
      */
     public function __construct(
-        private readonly array $entitiesToDelete,
-        private readonly array $entitiesToInsert,
-        private readonly array $entitiesToUpdate,
-        private readonly array $entityChangeSets = [],
+        protected readonly array $entitiesToDelete,
+        protected readonly array $entitiesToInsert,
+        protected readonly array $entitiesToUpdate,
+        protected readonly array $entityChangeSets = [],
     ) {
         $this->auditEntities = [];
     }
@@ -54,7 +54,7 @@ class AuditorDto
         return $this->auditEntities;
     }
 
-    public function addAuditEntity(EntityDto $entityDto): self
+    public function addAuditEntity(EntityDto $entityDto): static
     {
         $this->auditEntities[] = $entityDto;
 

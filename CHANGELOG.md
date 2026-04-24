@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.4.3] - 2026-04-23 - Complete extensibility pass: constants, properties, and fluent return types
+
+### Changed
+
+- `PrecisionSoftDoctrineAuditExtension::BASE_COMMAND_NAME` and `BASE_SERVICE_ID` — visibility widened from `private const` to `protected const`; all usages switched from `self::` to `static::` so subclasses can override the command name prefix and service ID prefix and have all `get*Id()` / `get*ConfigId()` helpers honor the override
+- `Storage\Doctrine\Configuration::DEFAULT_TRANSACTION_TABLE`, `DEFAULT_TRANSACTION_ID_COLUMN`, `DEFAULT_TRANSACTION_ID_TYPE`, `DEFAULT_OPERATION_COLUMN` — visibility widened from `private const` to `protected const` and all 4 constructor usages switched from `self::` to `static::` so subclasses can override default column and table names without duplicating the constructor body
+- `Storage\Doctrine\Configuration::$transactionTableName`, `$transactionIdColumnName`, `$transactionIdColumnType`, `$operationColumnName` — visibility widened from `private readonly` to `protected readonly`; complements the `protected const DEFAULT_*` widening above
+- `Auditor::$configuration`, `$entityManager`, `$storages`, `$transactionProvider`, `$logger`, `$annotationReadService` — visibility widened from `private readonly` to `protected readonly`
+- `Auditor::$auditedEntities`, `$auditorDto` — visibility widened from `private` to `protected`
+- `Auditor\Configuration::$ignoredFields` — visibility widened from `private readonly` to `protected readonly`
+- `DoctrineSchemaListener::$annotationReadService`, `$auditorConfiguration`, `$storageConfiguration` — visibility widened from `private readonly` to `protected readonly`; the listener already exposes `protected configureAuditTable()` and `updateType()` confirming extension is expected
+- `FieldDto::$name`, `$columnName`, `$type`, `$value`, `$oldValue`, `$hasOldValue` — visibility widened from `private readonly` to `protected readonly`
+- `AuditorDto::$auditEntities` — visibility widened from `private` to `protected`
+- `AuditorDto::$entitiesToDelete`, `$entitiesToInsert`, `$entitiesToUpdate`, `$entityChangeSets` — visibility widened from `private readonly` to `protected readonly`
+- `AuditorDto::addAuditEntity()` — return type widened from `self` to `static`
+- `Annotation\EntityDto::$class`, `$ignoredFields` — visibility widened from `private readonly` to `protected readonly`
+- `Storage\EntityDto`-based DTOs (`StorageDto::$transaction`, `$entities`; `TransactionDto::$username`, `$extras`) — visibility widened from `private readonly` to `protected readonly`
+- `Storage\Doctrine\Storage::$entityManager`, `$configuration`, `$logger` — visibility widened from `private readonly` to `protected readonly`
+- `Storage\FileStorage::$filesystem`, `$jsonEncoder`, `$file`, `$logger` — visibility widened from `private readonly` to `protected readonly`; the class already exposes `protected buildTransaction()` and `getLogger()` for extension
+- `EntityDto::addField()` — return type widened from `self` to `static`; `EntityDto` extends `AbstractEntityDto` which declares `protected array $fields`, confirming subclassing is expected
+- `AnnotationReadService::$entityDtoCache` — visibility widened from `private` to `protected`; the class exposes three `protected` helper methods (`hasAuditableAttribute`, `hasEntityAttribute`, `hasIgnoreAttribute`) confirming extension is expected, and subclasses that override `buildEntityDto()` need cache access
+
 ## [v3.4.2] - 2026-04-23 - Extend Late Static Binding to Configuration and AbstractCommand
 
 ### Fixed
@@ -326,7 +348,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/symfony-doctrine-audit`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.2...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.3...HEAD
+
+[v3.4.3]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.2...v3.4.3
 
 [v3.4.2]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.1...v3.4.2
 

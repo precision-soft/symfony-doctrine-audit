@@ -12,7 +12,7 @@ class Configuration
 {
     /** @param string[] $ignoredFields */
     public function __construct(
-        private readonly array $ignoredFields,
+        protected readonly array $ignoredFields,
     ) {}
 
     /** @return string[] */

@@ -11,12 +11,12 @@ namespace PrecisionSoft\Doctrine\Audit\Dto;
 class FieldDto
 {
     public function __construct(
-        private readonly string $name,
-        private readonly string $columnName,
-        private readonly string $type,
-        private readonly mixed $value,
-        private readonly mixed $oldValue = null,
-        private readonly bool $hasOldValue = false,
+        protected readonly string $name,
+        protected readonly string $columnName,
+        protected readonly string $type,
+        protected readonly mixed $value,
+        protected readonly mixed $oldValue = null,
+        protected readonly bool $hasOldValue = false,
     ) {}
 
     public function getName(): string

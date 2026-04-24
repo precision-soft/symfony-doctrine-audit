@@ -21,12 +21,12 @@ class FileStorage implements StorageInterface
 {
     use ThrowTrait;
 
-    private readonly Filesystem $filesystem;
-    private readonly JsonEncoder $jsonEncoder;
+    protected readonly Filesystem $filesystem;
+    protected readonly JsonEncoder $jsonEncoder;
 
     public function __construct(
-        private readonly string $file,
-        private readonly ?LoggerInterface $logger,
+        protected readonly string $file,
+        protected readonly ?LoggerInterface $logger,
     ) {
         $this->filesystem = new Filesystem();
         $this->jsonEncoder = new JsonEncoder();

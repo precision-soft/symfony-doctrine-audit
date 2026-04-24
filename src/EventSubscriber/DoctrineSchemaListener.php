@@ -29,9 +29,9 @@ use Throwable;
 class DoctrineSchemaListener
 {
     public function __construct(
-        private readonly AnnotationReadServiceInterface $annotationReadService,
-        private readonly AuditorConfiguration $auditorConfiguration,
-        private readonly StorageConfiguration $storageConfiguration,
+        protected readonly AnnotationReadServiceInterface $annotationReadService,
+        protected readonly AuditorConfiguration $auditorConfiguration,
+        protected readonly StorageConfiguration $storageConfiguration,
     ) {}
 
     public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $eventArgs): void

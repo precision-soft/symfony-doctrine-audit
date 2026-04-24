@@ -23,7 +23,7 @@ use ReflectionProperty;
 class AnnotationReadService implements AnnotationReadServiceInterface
 {
     /** @var array<string, EntityDto|null> */
-    private array $entityDtoCache = [];
+    protected array $entityDtoCache = [];
 
     public static function resolveEntityClass(object $entityOrProxy): string
     {

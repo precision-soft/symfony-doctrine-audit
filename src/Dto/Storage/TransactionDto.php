@@ -12,8 +12,8 @@ class TransactionDto
 {
     /** @param array<string, mixed> $extras */
     public function __construct(
-        private readonly string $username,
-        private readonly array $extras = [],
+        protected readonly string $username,
+        protected readonly array $extras = [],
     ) {}
 
     public function getUsername(): string

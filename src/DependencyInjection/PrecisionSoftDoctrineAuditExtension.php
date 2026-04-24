@@ -29,8 +29,8 @@ use Symfony\Component\DependencyInjection\Reference;
 
 class PrecisionSoftDoctrineAuditExtension extends Extension
 {
-    private const BASE_COMMAND_NAME = 'precision-soft:doctrine:audit';
-    private const BASE_SERVICE_ID = 'precision_soft_doctrine_audit';
+    protected const BASE_COMMAND_NAME = 'precision-soft:doctrine:audit';
+    protected const BASE_SERVICE_ID = 'precision_soft_doctrine_audit';
 
     public function load(array $configs, ContainerBuilder $containerBuilder): void
     {
@@ -274,7 +274,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
             $definition = new Definition(
                 $commandClass,
                 [
-                    \sprintf('%s:schema:%s:%s', self::BASE_COMMAND_NAME, $commandName, $auditorName),
+                    \sprintf('%s:schema:%s:%s', static::BASE_COMMAND_NAME, $commandName, $auditorName),
                     $auditorEntityManagerReference,
                     $storageEntityManagerReference,
                     new Reference(AnnotationReadService::class),
@@ -313,27 +313,27 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
 
     protected function getStorageId(string $name): string
     {
-        return \sprintf('%s.storage.%s', self::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.storage.%s', static::BASE_SERVICE_ID, $name);
     }
 
     protected function getStorageConfigId(string $name): string
     {
-        return \sprintf('%s.storage.%s.config', self::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.storage.%s.config', static::BASE_SERVICE_ID, $name);
     }
 
     protected function getAuditorId(string $name): string
     {
-        return \sprintf('%s.auditor.%s', self::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.auditor.%s', static::BASE_SERVICE_ID, $name);
     }
 
     protected function getAuditorConfigId(string $name): string
     {
-        return \sprintf('%s.auditor.%s.config', self::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.auditor.%s.config', static::BASE_SERVICE_ID, $name);
     }
 
     protected function getCommandId(string $name): string
     {
-        return \sprintf('%s.command.%s', self::BASE_SERVICE_ID, $name);
+        return \sprintf('%s.command.%s', static::BASE_SERVICE_ID, $name);
     }
 
     protected function getEntityManager(string $name): Reference

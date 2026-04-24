@@ -22,7 +22,7 @@ class EntityDto extends AbstractEntityDto
         $this->fields = [];
     }
 
-    public function addField(FieldDto $fieldDto): self
+    public function addField(FieldDto $fieldDto): static
     {
         $this->fields[] = $fieldDto;
 

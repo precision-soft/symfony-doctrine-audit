@@ -25,9 +25,9 @@ class Storage implements StorageInterface
     use ThrowTrait;
 
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly Configuration $configuration,
-        private readonly ?LoggerInterface $logger,
+        protected readonly EntityManagerInterface $entityManager,
+        protected readonly Configuration $configuration,
+        protected readonly ?LoggerInterface $logger,
     ) {}
 
     public function save(StorageDto $storageDto): void

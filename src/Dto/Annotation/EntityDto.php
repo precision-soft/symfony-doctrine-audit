@@ -12,8 +12,8 @@ class EntityDto
 {
     /** @param string[] $ignoredFields */
     public function __construct(
-        private readonly string $class,
-        private readonly array $ignoredFields,
+        protected readonly string $class,
+        protected readonly array $ignoredFields,
     ) {}
 
     public function getClass(): string

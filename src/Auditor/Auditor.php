@@ -34,19 +34,19 @@ class Auditor
     use ThrowTrait;
 
     /** @var array<string, AnnotationEntityDto>|null */
-    private ?array $auditedEntities;
-    private ?AuditorDto $auditorDto;
+    protected ?array $auditedEntities;
+    protected ?AuditorDto $auditorDto;
 
     /**
      * @param StorageInterface[] $storages
      */
     public function __construct(
-        private readonly Configuration $configuration,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly array $storages,
-        private readonly TransactionProviderInterface $transactionProvider,
-        private readonly ?LoggerInterface $logger,
-        private readonly AnnotationReadServiceInterface $annotationReadService,
+        protected readonly Configuration $configuration,
+        protected readonly EntityManagerInterface $entityManager,
+        protected readonly array $storages,
+        protected readonly TransactionProviderInterface $transactionProvider,
+        protected readonly ?LoggerInterface $logger,
+        protected readonly AnnotationReadServiceInterface $annotationReadService,
     ) {
         $this->auditedEntities = null;
         $this->auditorDto = null;

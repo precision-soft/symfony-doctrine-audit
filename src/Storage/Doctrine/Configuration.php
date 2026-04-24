@@ -10,23 +10,23 @@ namespace PrecisionSoft\Doctrine\Audit\Storage\Doctrine;
 
 class Configuration
 {
-    private const DEFAULT_TRANSACTION_TABLE = 'audit_transaction';
-    private const DEFAULT_TRANSACTION_ID_COLUMN = 'audit_transaction_id';
-    private const DEFAULT_TRANSACTION_ID_TYPE = 'integer';
-    private const DEFAULT_OPERATION_COLUMN = 'audit_operation';
+    protected const DEFAULT_TRANSACTION_TABLE = 'audit_transaction';
+    protected const DEFAULT_TRANSACTION_ID_COLUMN = 'audit_transaction_id';
+    protected const DEFAULT_TRANSACTION_ID_TYPE = 'integer';
+    protected const DEFAULT_OPERATION_COLUMN = 'audit_operation';
 
-    private readonly string $transactionTableName;
-    private readonly string $transactionIdColumnName;
-    private readonly string $transactionIdColumnType;
-    private readonly string $operationColumnName;
+    protected readonly string $transactionTableName;
+    protected readonly string $transactionIdColumnName;
+    protected readonly string $transactionIdColumnType;
+    protected readonly string $operationColumnName;
 
     /** @param array<string, string> $config */
     public function __construct(array $config)
     {
-        $this->transactionTableName = $config['transaction_table_name'] ?? self::DEFAULT_TRANSACTION_TABLE;
-        $this->transactionIdColumnName = $config['transaction_id_column_name'] ?? self::DEFAULT_TRANSACTION_ID_COLUMN;
-        $this->transactionIdColumnType = $config['transaction_id_column_type'] ?? self::DEFAULT_TRANSACTION_ID_TYPE;
-        $this->operationColumnName = $config['operation_column_name'] ?? self::DEFAULT_OPERATION_COLUMN;
+        $this->transactionTableName = $config['transaction_table_name'] ?? static::DEFAULT_TRANSACTION_TABLE;
+        $this->transactionIdColumnName = $config['transaction_id_column_name'] ?? static::DEFAULT_TRANSACTION_ID_COLUMN;
+        $this->transactionIdColumnType = $config['transaction_id_column_type'] ?? static::DEFAULT_TRANSACTION_ID_TYPE;
+        $this->operationColumnName = $config['operation_column_name'] ?? static::DEFAULT_OPERATION_COLUMN;
     }
 
     public function getTransactionTableName(): string
