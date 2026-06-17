@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.4.4] - 2026-06-17 - Replace production asserts with explicit checks and document limitations
+
+### Fixed
+
+- `Auditor::createAuditorEntityDtos()` — the inheritance discriminator-column null check no longer relies on `\assert()`, which is a no-op under `zend.assertions=-1` in production; a missing discriminator column on an inheritance-mapped entity now throws a clear `Exception` instead of failing later with an opaque error
+- `DoctrineSchemaListener::configureAuditTable()` — the entity primary-key null check no longer relies on `\assert()` either; an audited entity whose table has no primary key now throws a clear `Exception` instead of failing later with an opaque "method call on null" fatal in production
+
+### Changed
+
+- `README.md` — added a **Limitations** section documenting that to-many / inverse-side collection changes and bulk DQL/DBAL operations are not audited (both inherent to flush-event-based auditing)
+
+### Added
+
+- `composer.json` — added `test`, `phpstan`, `cs-check`, `cs-fix` and an aggregate `check` convenience script wrapping `simple-phpunit`, `phpstan`, and `php-cs-fixer`
+- `DoctrineSchemaListenerTest::testPostGenerateSchemaTableThrowsWhenEntityTableHasNoPrimaryKey` covering the primary-key guard
+
 ## [v3.4.3] - 2026-04-23 - Complete extensibility pass: constants, properties, and fluent return types
 
 ### Changed
@@ -348,7 +364,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/symfony-doctrine-audit`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.3...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.4...HEAD
+
+[v3.4.4]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.3...v3.4.4
 
 [v3.4.3]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.2...v3.4.3
 

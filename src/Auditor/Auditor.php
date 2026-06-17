@@ -291,7 +291,12 @@ class Auditor
 
         if (true === $classMetadata->isInheritanceTypeSingleTable()) {
             $discriminatorColumn = $classMetadata->discriminatorColumn;
-            \assert(null !== $discriminatorColumn);
+
+            if (null === $discriminatorColumn) {
+                throw new Exception(
+                    \sprintf('entity `%s` uses inheritance but has no discriminator column', $classMetadata->getName()),
+                );
+            }
             $auditorEntityDto->addField(
                 new FieldDto(
                     $discriminatorColumn['fieldName'],
@@ -304,7 +309,12 @@ class Auditor
 
         if (true === $classMetadata->isInheritanceTypeJoined()) {
             $discriminatorColumn = $classMetadata->discriminatorColumn;
-            \assert(null !== $discriminatorColumn);
+
+            if (null === $discriminatorColumn) {
+                throw new Exception(
+                    \sprintf('entity `%s` uses inheritance but has no discriminator column', $classMetadata->getName()),
+                );
+            }
             $field = $discriminatorColumn['fieldName'];
 
             if (true === $classMetadata->isRootEntity()) {

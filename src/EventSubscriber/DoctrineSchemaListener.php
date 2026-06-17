@@ -174,7 +174,12 @@ class DoctrineSchemaListener
         );
 
         $primaryKey = $entityTable->getPrimaryKey();
-        \assert(null !== $primaryKey);
+
+        if (null === $primaryKey) {
+            throw new Exception(
+                \sprintf('entity table `%s` has no primary key — audited entities must have one', $entityTable->getName()),
+            );
+        }
         $primaryKeyColumns = $primaryKey->getColumns();
         $primaryKeyColumns[] = $this->storageConfiguration->getTransactionIdColumnName();
 

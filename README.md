@@ -39,6 +39,13 @@ The library hooks into Doctrine's `onFlush` and `postFlush` events to capture en
 3. **Storage** -- Captured changes are wrapped in a `StorageDto` and dispatched to one or more storage backends (Doctrine tables, JSONL files, or a custom service). Storages can be synchronous or asynchronous.
 4. **Transaction grouping** -- All changes within a single flush are grouped under one transaction record that includes the username (provided by a `TransactionProviderInterface` implementation) and a timestamp.
 
+## Limitations
+
+Auditing is driven by Doctrine ORM flush events, so a few categories of changes are intentionally **not** captured:
+
+- **To-many / inverse-side association changes** -- Modifications to `OneToMany`, `ManyToMany`, and inverse-side collections (adding/removing related entities) are surfaced by Doctrine as `PersistentCollection` change-set entries and are not recorded. Only owning-side to-one associations and scalar fields are audited. If you need to audit a relationship change, audit the owning side (e.g. the join entity of a many-to-many).
+- **Bulk DQL / DBAL operations** -- `UPDATE`/`DELETE` issued via DQL or raw DBAL bypass the Unit of Work and therefore dispatch no flush events, so they produce no audit rows. Mutate entities through the ORM (persist/remove + flush) when an audit trail is required.
+
 ## Configuration reference
 
 ```yaml

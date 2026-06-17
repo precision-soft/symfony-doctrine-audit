@@ -20,6 +20,7 @@ use Mockery;
 use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration as AuditorConfiguration;
 use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
+use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\EventSubscriber\DoctrineSchemaListener;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration as StorageConfiguration;
@@ -108,6 +109,46 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('`fail_table` => `metadata failure`');
+
+        $listener->postGenerateSchemaTable($eventArgs);
+    }
+
+    public function testPostGenerateSchemaTableThrowsWhenEntityTableHasNoPrimaryKey(): void
+    {
+        $listener = $this->createListener();
+
+        $classMetadata = new ClassMetadata(stdClass::class);
+
+        $entityDto = Mockery::mock(EntityDto::class);
+
+        $this->annotationReadService->shouldReceive('buildEntityDto')
+            ->once()
+            ->with($classMetadata)
+            ->andReturn($entityDto);
+
+        $column = Mockery::mock(Column::class);
+        $column->shouldReceive('getName')->andReturn('unmapped_column');
+
+        $table = Mockery::mock(Table::class);
+        $table->shouldReceive('getColumns')->andReturn([$column]);
+        $table->shouldReceive('addColumn')->andReturn(Mockery::mock(Column::class));
+
+        $entityTable = Mockery::mock(Table::class);
+        $entityTable->shouldReceive('getName')->andReturn('no_pk_table');
+        /** @info the table has no primary key; in production (assertions off) this previously crashed with a "method on null" fatal */
+        $entityTable->shouldReceive('getPrimaryKey')->once()->andReturnNull();
+
+        $schema = Mockery::mock(Schema::class);
+        $schema->shouldReceive('getTable')->with('no_pk_table')->andReturn($table);
+        $schema->shouldReceive('dropTable')->once()->with('no_pk_table');
+
+        $eventArgs = Mockery::mock(GenerateSchemaTableEventArgs::class);
+        $eventArgs->shouldReceive('getClassMetadata')->andReturn($classMetadata);
+        $eventArgs->shouldReceive('getSchema')->andReturn($schema);
+        $eventArgs->shouldReceive('getClassTable')->andReturn($entityTable);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessageMatches('/has no primary key/');
 
         $listener->postGenerateSchemaTable($eventArgs);
     }
