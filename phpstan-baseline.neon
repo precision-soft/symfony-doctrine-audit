@@ -157,6 +157,66 @@ parameters:
 			path: tests/Auditor/ConfigurationTest.php
 
 		-
+			message: '#^Call to an undefined method Doctrine\\ORM\\Tools\\SchemaTool\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Command/DoctrineSchema/CreateCommandTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Command/DoctrineSchema/CreateCommandTest.php
+
+		-
+			message: '#^Parameter \#2 \$sourceEntityManager of class PrecisionSoft\\Doctrine\\Audit\\Command\\DoctrineSchema\\CreateCommand constructor expects Doctrine\\ORM\\EntityManagerInterface, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Command/DoctrineSchema/CreateCommandTest.php
+
+		-
+			message: '#^Parameter \#3 \$destinationEntityManager of class PrecisionSoft\\Doctrine\\Audit\\Command\\DoctrineSchema\\CreateCommand constructor expects Doctrine\\ORM\\EntityManagerInterface, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Command/DoctrineSchema/CreateCommandTest.php
+
+		-
+			message: '#^Parameter \#4 \$annotationReadService of class PrecisionSoft\\Doctrine\\Audit\\Command\\DoctrineSchema\\CreateCommand constructor expects PrecisionSoft\\Doctrine\\Audit\\Contract\\AnnotationReadServiceInterface, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Command/DoctrineSchema/CreateCommandTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\ORM\\Tools\\SchemaTool\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Command/DoctrineSchema/UpdateCommandTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Command/DoctrineSchema/UpdateCommandTest.php
+
+		-
+			message: '#^Parameter \#2 \$sourceEntityManager of class PrecisionSoft\\Doctrine\\Audit\\Command\\DoctrineSchema\\UpdateCommand constructor expects Doctrine\\ORM\\EntityManagerInterface, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Command/DoctrineSchema/UpdateCommandTest.php
+
+		-
+			message: '#^Parameter \#3 \$destinationEntityManager of class PrecisionSoft\\Doctrine\\Audit\\Command\\DoctrineSchema\\UpdateCommand constructor expects Doctrine\\ORM\\EntityManagerInterface, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Command/DoctrineSchema/UpdateCommandTest.php
+
+		-
+			message: '#^Parameter \#4 \$annotationReadService of class PrecisionSoft\\Doctrine\\Audit\\Command\\DoctrineSchema\\UpdateCommand constructor expects PrecisionSoft\\Doctrine\\Audit\\Contract\\AnnotationReadServiceInterface, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Command/DoctrineSchema/UpdateCommandTest.php
+
+		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Audit\\Test\\DependencyInjection\\PrecisionSoftDoctrineAuditExtensionTest\:\:buildContainer\(\) has parameter \$config with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
