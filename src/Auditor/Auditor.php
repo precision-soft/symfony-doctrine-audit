@@ -41,11 +41,11 @@ class Auditor
      * @param StorageInterface[] $storages
      */
     public function __construct(
-        protected readonly Configuration $configuration,
-        protected readonly EntityManagerInterface $entityManager,
-        protected readonly array $storages,
-        protected readonly TransactionProviderInterface $transactionProvider,
-        protected readonly ?LoggerInterface $logger,
+        protected readonly Configuration                  $configuration,
+        protected readonly EntityManagerInterface         $entityManager,
+        protected readonly array                          $storages,
+        protected readonly TransactionProviderInterface   $transactionProvider,
+        protected readonly ?LoggerInterface               $logger,
         protected readonly AnnotationReadServiceInterface $annotationReadService,
     ) {
         $this->auditedEntities = null;
@@ -196,9 +196,9 @@ class Auditor
      */
     protected function createAuditorEntityDtos(
         ClassMetadata $classMetadata,
-        array $entityData,
-        Operation $operation,
-        ?array $changeSet = null,
+        array         $entityData,
+        Operation     $operation,
+        ?array        $changeSet = null,
     ): array {
         $entityDtos = [];
 

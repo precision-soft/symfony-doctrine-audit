@@ -14,9 +14,9 @@ class FieldDto
         protected readonly string $name,
         protected readonly string $columnName,
         protected readonly string $type,
-        protected readonly mixed $value,
-        protected readonly mixed $oldValue = null,
-        protected readonly bool $hasOldValue = false,
+        protected readonly mixed  $value,
+        protected readonly mixed  $oldValue = null,
+        protected readonly bool   $hasOldValue = false,
     ) {}
 
     public function getName(): string

@@ -17,9 +17,9 @@ class EntityDto extends AbstractEntityDto
     /** @param FieldDto[] $fields */
     public function __construct(
         Operation $operation,
-        string $class,
-        string $tableName,
-        array $fields,
+        string    $class,
+        string    $tableName,
+        array     $fields,
     ) {
         $this->operation = $operation;
         $this->class = $class;

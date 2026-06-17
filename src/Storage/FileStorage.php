@@ -25,7 +25,7 @@ class FileStorage implements StorageInterface
     protected readonly JsonEncoder $jsonEncoder;
 
     public function __construct(
-        protected readonly string $file,
+        protected readonly string           $file,
         protected readonly ?LoggerInterface $logger,
     ) {
         $this->filesystem = new Filesystem();

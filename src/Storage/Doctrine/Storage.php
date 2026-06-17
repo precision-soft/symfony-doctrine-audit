@@ -26,8 +26,8 @@ class Storage implements StorageInterface
 
     public function __construct(
         protected readonly EntityManagerInterface $entityManager,
-        protected readonly Configuration $configuration,
-        protected readonly ?LoggerInterface $logger,
+        protected readonly Configuration          $configuration,
+        protected readonly ?LoggerInterface       $logger,
     ) {}
 
     public function save(StorageDto $storageDto): void

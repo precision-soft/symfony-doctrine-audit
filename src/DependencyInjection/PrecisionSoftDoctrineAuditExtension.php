@@ -65,8 +65,8 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
     /** @param array<string, mixed> $storage */
     protected function defineStorageDoctrine(
         ContainerBuilder $containerBuilder,
-        array $storage,
-        string $storageName,
+        array            $storage,
+        string           $storageName,
     ): void {
         $storageType = $storage['type'];
         $entityManager = $storage['entity_manager'] ?? null;
@@ -100,8 +100,8 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
     /** @param array<string, mixed> $config */
     protected function defineStorageDoctrineConfig(
         ContainerBuilder $containerBuilder,
-        string $storageName,
-        array $config,
+        string           $storageName,
+        array            $config,
     ): void {
         $definition = new Definition(
             DoctrineConfig::class,
@@ -118,8 +118,8 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
     /** @param array<string, mixed> $storage */
     protected function defineStorageFile(
         ContainerBuilder $containerBuilder,
-        array $storage,
-        string $storageName,
+        array            $storage,
+        string           $storageName,
     ): void {
         $storageType = $storage['type'];
         $file = $storage['file'] ?? null;
@@ -148,8 +148,8 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
     /** @param array<string, mixed> $storage */
     protected function defineStorageCustom(
         ContainerBuilder $containerBuilder,
-        array $storage,
-        string $storageName,
+        array            $storage,
+        string           $storageName,
     ): void {
         $storageType = $storage['type'];
         $service = $storage['service'] ?? null;
@@ -251,10 +251,10 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
      */
     protected function defineSchemaCommands(
         ContainerBuilder $containerBuilder,
-        string $auditorName,
-        string $storageName,
-        array $auditor,
-        array $storage,
+        string           $auditorName,
+        string           $storageName,
+        array            $auditor,
+        array            $storage,
     ): void {
         [$auditorEntityManager] = $this->getEntityManagerAndConnection($auditor);
         [$storageEntityManager, $storageConnection] = $this->getEntityManagerAndConnection($storage);

@@ -13,7 +13,7 @@ class StorageDto
     /** @param EntityDto[] $entities */
     public function __construct(
         protected readonly TransactionDto $transaction,
-        protected readonly array $entities,
+        protected readonly array          $entities,
     ) {}
 
     public function getTransaction(): TransactionDto
