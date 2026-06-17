@@ -23,9 +23,9 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
     protected const FORCE = 'force';
 
     public function __construct(
-        string                                            $name,
-        protected readonly EntityManagerInterface         $sourceEntityManager,
-        protected readonly EntityManagerInterface         $destinationEntityManager,
+        string $name,
+        protected readonly EntityManagerInterface $sourceEntityManager,
+        protected readonly EntityManagerInterface $destinationEntityManager,
         protected readonly AnnotationReadServiceInterface $annotationReadService,
     ) {
         parent::__construct($name);

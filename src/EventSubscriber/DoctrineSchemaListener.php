@@ -30,8 +30,8 @@ class DoctrineSchemaListener
 {
     public function __construct(
         protected readonly AnnotationReadServiceInterface $annotationReadService,
-        protected readonly AuditorConfiguration           $auditorConfiguration,
-        protected readonly StorageConfiguration           $storageConfiguration,
+        protected readonly AuditorConfiguration $auditorConfiguration,
+        protected readonly StorageConfiguration $storageConfiguration,
     ) {}
 
     public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $eventArgs): void
