@@ -28,7 +28,6 @@ final class PrecisionSoftDoctrineAuditBundleTest extends TestCase
 
     public function testBootRegistersAuditOperationType(): void
     {
-        /** @info remove type if previously registered by another test */
         $typeName = AuditOperationType::getDefaultName();
         if (true === Type::hasType($typeName)) {
             Type::overrideType($typeName, AuditOperationType::class);
@@ -45,14 +44,12 @@ final class PrecisionSoftDoctrineAuditBundleTest extends TestCase
     {
         $typeName = AuditOperationType::getDefaultName();
 
-        /** @info ensure type is registered first */
         if (false === Type::hasType($typeName)) {
             Type::addType($typeName, AuditOperationType::class);
         }
 
         $precisionSoftDoctrineAuditBundle = new PrecisionSoftDoctrineAuditBundle();
 
-        /** @info should not throw even though type already exists */
         $precisionSoftDoctrineAuditBundle->boot();
 
         static::assertSame(true, Type::hasType($typeName));

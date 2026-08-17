@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Copyright (c) Precision Soft
+ */
+
+namespace PrecisionSoft\Doctrine\Audit\Test\Functional;
+
+use PHPUnit\Framework\Attributes\DataProviderExternal;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\AuditIntegrationEnvironment;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\AuditedSubject;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\IntegrationDatabase;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\SkipIntegrationException;
+
+/**
+ * The two storages may differ in shape - a column per field against a JSONL line with old/new pairs - but never in content.
+ *
+ * @internal
+ */
+#[Group('integration')]
+final class StorageParityFunctionalTest extends TestCase
+{
+    private ?AuditIntegrationEnvironment $environment = null;
+    private ?string $auditFile = null;
+
+    protected function tearDown(): void
+    {
+        $this->environment?->close();
+        $this->environment = null;
+
+        if (null !== $this->auditFile && true === \file_exists($this->auditFile)) {
+            \unlink($this->auditFile);
+        }
+
+        $this->auditFile = null;
+
+        parent::tearDown();
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testDoctrineAndFileStorageDescribeTheSameOperations(string $environmentVariable): void
+    {
+        try {
+            $sourceConnection = IntegrationDatabase::createConnection(
+                $environmentVariable,
+                IntegrationDatabase::SOURCE_SCHEMA,
+            );
+            $auditConnection = IntegrationDatabase::createConnection(
+                $environmentVariable,
+                IntegrationDatabase::AUDIT_SCHEMA,
+            );
+        } catch (SkipIntegrationException $skipIntegrationException) {
+            static::markTestSkipped($skipIntegrationException->getMessage());
+        }
+
+        $this->auditFile = \sys_get_temp_dir() . '/audit_parity_' . \uniqid() . '.log';
+
+        $environment = $this->environment = new AuditIntegrationEnvironment(
+            $sourceConnection,
+            $auditConnection,
+            extraStorages: [new FileStorage($this->auditFile, null)],
+        );
+
+        $subject = (new AuditedSubject())->setName('parity')->setSecret('s')->setModified('m');
+        $environment->sourceEntityManager->persist($subject);
+        $environment->sourceEntityManager->flush();
+
+        $subject->setName('parity-updated');
+        $environment->sourceEntityManager->flush();
+
+        $environment->sourceEntityManager->remove($subject);
+        $environment->sourceEntityManager->flush();
+
+        $doctrineRows = $environment->readAuditRows('audited_subject');
+        $fileLines = $this->readJsonLines();
+
+        static::assertCount(3, $doctrineRows);
+        static::assertCount(3, $fileLines);
+
+        static::assertSame(
+            ['insert', 'update', 'delete'],
+            \array_column($doctrineRows, 'audit_operation'),
+        );
+        static::assertSame(
+            ['insert', 'update', 'delete'],
+            \array_map(static fn(array $line) => $line['entities'][0]['operation'], $fileLines),
+        );
+
+        static::assertSame('parity', $doctrineRows[0]['name']);
+        static::assertSame('parity', $fileLines[0]['entities'][0]['columns']['name']);
+
+        static::assertSame('parity-updated', $doctrineRows[1]['name']);
+        static::assertSame(
+            ['old' => 'parity', 'new' => 'parity-updated'],
+            $fileLines[1]['entities'][0]['columns']['name'],
+        );
+
+        foreach ($fileLines as $fileLine) {
+            static::assertArrayNotHasKey('secret', $fileLine['entities'][0]['columns']);
+            static::assertArrayNotHasKey('modified', $fileLine['entities'][0]['columns']);
+        }
+
+        foreach ($fileLines as $fileLine) {
+            static::assertSame('integration', $fileLine['username']);
+        }
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function readJsonLines(): array
+    {
+        static::assertNotNull($this->auditFile);
+
+        $contents = \file_get_contents($this->auditFile);
+        static::assertNotFalse($contents);
+
+        $lines = \array_filter(\explode(\PHP_EOL, \trim($contents)));
+
+        return \array_map(
+            static fn(string $line) => \json_decode($line, true, 512, \JSON_THROW_ON_ERROR),
+            \array_values($lines),
+        );
+    }
+}

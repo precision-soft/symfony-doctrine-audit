@@ -16,6 +16,7 @@ use PrecisionSoft\Doctrine\Audit\DependencyInjection\PrecisionSoftDoctrineAuditE
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Storage as DoctrineStorage;
 use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -27,6 +28,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
     private const AUDITOR_NAME = 'main';
     private const TRANSACTION_PROVIDER = 'App\\TransactionProvider';
 
+    /** @param array<string, mixed> $config */
     private function buildContainer(array $config): ContainerBuilder
     {
         $containerBuilder = new ContainerBuilder();
@@ -36,6 +38,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
         return $containerBuilder;
     }
 
+    /** @return array<string, array<string, string>> */
     private function validDoctrineStorageConfig(string $storageName, string $entityManager, ?string $logger = null): array
     {
         $config = [
@@ -50,6 +53,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
         return [$storageName => $config];
     }
 
+    /** @return array<string, array<string, string>> */
     private function validFileStorageConfig(string $storageName, string $file, ?string $logger = null): array
     {
         $config = [
@@ -64,6 +68,7 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
         return [$storageName => $config];
     }
 
+    /** @return array<string, array<string, string>> */
     private function validCustomStorageConfig(string $storageName, string $service): array
     {
         return [
@@ -74,6 +79,10 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
         ];
     }
 
+    /**
+     * @param string[] $storageNames
+     * @return array<string, array<string, mixed>>
+     */
     private function validAuditorConfig(array $storageNames, ?string $logger = null): array
     {
         $config = [
@@ -261,8 +270,8 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
             'auditors' => $this->validAuditorConfig([$storageName]),
         ]);
 
-        $createId = \sprintf('precision_soft_doctrine_audit.command.create.%s', static::AUDITOR_NAME);
-        $updateId = \sprintf('precision_soft_doctrine_audit.command.update.%s', static::AUDITOR_NAME);
+        $createId = \sprintf('precision_soft_doctrine_audit.command.create.%s.%s', static::AUDITOR_NAME, $storageName);
+        $updateId = \sprintf('precision_soft_doctrine_audit.command.update.%s.%s', static::AUDITOR_NAME, $storageName);
 
         static::assertSame(true, $containerBuilder->hasDefinition($createId));
         static::assertSame(true, $containerBuilder->hasDefinition($updateId));
@@ -277,6 +286,55 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
         $this->buildContainer([
             'storages' => $this->validFileStorageConfig('existing_store', '/var/log/audit.log'),
             'auditors' => $this->validAuditorConfig(['nonexistent_store']),
+        ]);
+    }
+
+    public function testTwoDoctrineStoragesOnOneAuditorEachGetTheirOwnSchemaCommands(): void
+    {
+        $containerBuilder = $this->buildContainer([
+            'storages' => \array_merge(
+                $this->validDoctrineStorageConfig('audit_one', 'audit_em_one'),
+                $this->validDoctrineStorageConfig('audit_two', 'audit_em_two'),
+            ),
+            'auditors' => $this->validAuditorConfig(['audit_one', 'audit_two']),
+        ]);
+
+        $commandNames = [];
+
+        foreach (['audit_one', 'audit_two'] as $storageName) {
+            foreach (['create', 'update'] as $action) {
+                $serviceId = \sprintf(
+                    'precision_soft_doctrine_audit.command.%s.%s.%s',
+                    $action,
+                    static::AUDITOR_NAME,
+                    $storageName,
+                );
+
+                static::assertTrue(
+                    $containerBuilder->hasDefinition($serviceId),
+                    \sprintf('missing schema command `%s`', $serviceId),
+                );
+
+                $commandNames[] = $containerBuilder->getDefinition($serviceId)->getArgument(0);
+            }
+        }
+
+        static::assertSame($commandNames, \array_unique($commandNames));
+    }
+
+    public function testOmittingStoragesReportsTheMissingOptionInsteadOfCrashing(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessageMatches('/storages/');
+
+        $this->buildContainer([
+            'storages' => $this->validFileStorageConfig('file_store', '/var/log/audit.log'),
+            'auditors' => [
+                static::AUDITOR_NAME => [
+                    'entity_manager' => 'default',
+                    'transaction_provider' => static::TRANSACTION_PROVIDER,
+                ],
+            ],
         ]);
     }
 }

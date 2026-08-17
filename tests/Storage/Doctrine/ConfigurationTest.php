@@ -8,7 +8,9 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Test\Storage\Doctrine;
 
+use Doctrine\DBAL\Types\Types;
 use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration;
 
 /**
@@ -51,5 +53,22 @@ final class ConfigurationTest extends TestCase
         static::assertSame('audit_transaction_id', $config->getTransactionIdColumnName());
         static::assertSame('integer', $config->getTransactionIdColumnType());
         static::assertSame('audit_operation', $config->getOperationColumnName());
+    }
+
+    public function testANonIntegerTransactionIdColumnTypeIsRejected(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessageMatches('/transaction_id_column_type/');
+
+        new Configuration(['transaction_id_column_type' => Types::GUID]);
+    }
+
+    public function testTheIntegerFamilyIsAccepted(): void
+    {
+        foreach ([Types::INTEGER, Types::BIGINT, Types::SMALLINT] as $columnType) {
+            $configuration = new Configuration(['transaction_id_column_type' => $columnType]);
+
+            static::assertSame($columnType, $configuration->getTransactionIdColumnType());
+        }
     }
 }

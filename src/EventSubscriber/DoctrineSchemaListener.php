@@ -19,9 +19,9 @@ use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration as AuditorConfiguration;
 use PrecisionSoft\Doctrine\Audit\Contract\AnnotationReadServiceInterface;
+use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration as StorageConfiguration;
-use PrecisionSoft\Doctrine\Audit\Type\AuditOperationType;
 use PrecisionSoft\Doctrine\Type\Contract\AbstractEnumType;
 use PrecisionSoft\Doctrine\Type\Contract\AbstractSetType;
 use Throwable;
@@ -46,7 +46,6 @@ class DoctrineSchemaListener
                 $tableIsAuditable = $this->configureAuditTable($eventArgs, $schema, $entityTable);
             } finally {
                 if (false === $tableIsAuditable) {
-                    /** @info entity is not configured for auditing — the tentative audit table is intentionally removed from the schema */
                     $schema->dropTable($entityTable->getName());
                 }
             }
@@ -55,6 +54,7 @@ class DoctrineSchemaListener
                 \sprintf('`%s` => `%s`', $entityTable->getName(), $throwable->getMessage()),
                 (int)$throwable->getCode(),
                 $throwable,
+                ['entityTableName' => $entityTable->getName()],
             );
         }
     }
@@ -99,6 +99,7 @@ class DoctrineSchemaListener
                 \sprintf('`%s` => `%s`', $this->storageConfiguration->getTransactionTableName(), $throwable->getMessage()),
                 (int)$throwable->getCode(),
                 $throwable,
+                ['transactionTableName' => $this->storageConfiguration->getTransactionTableName()],
             );
         }
     }
@@ -167,10 +168,11 @@ class DoctrineSchemaListener
             $this->storageConfiguration->getTransactionIdColumnName(),
             $this->storageConfiguration->getTransactionIdColumnType(),
         );
+        /* Types::ENUM and not AuditOperationType, for identical DDL: DBAL 4 introspects a MySQL enum back into its own EnumType and never a subclass, so the custom type never round-trips and schema:update re-issues the same ALTER forever */
         $table->addColumn(
             $this->storageConfiguration->getOperationColumnName(),
-            AuditOperationType::getDefaultName(),
-            ['notnull' => true],
+            Types::ENUM,
+            ['notnull' => true, 'values' => Operation::values()],
         );
 
         $primaryKey = $entityTable->getPrimaryKey();
@@ -196,9 +198,8 @@ class DoctrineSchemaListener
             $table->removeUniqueConstraint($uniqueConstraint->getName());
         }
 
-        $existingColumnNames = \array_keys($table->getColumns());
         foreach ($primaryKeyColumns as $primaryKeyColumn) {
-            if (false === \in_array($primaryKeyColumn, $existingColumnNames, true)) {
+            if (false === $table->hasColumn($primaryKeyColumn)) {
                 throw new Exception(
                     \sprintf(
                         'primary key column `%s` was dropped — identifier fields cannot be added to the ignored fields list',

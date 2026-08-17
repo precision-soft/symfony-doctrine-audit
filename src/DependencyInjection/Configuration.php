@@ -65,7 +65,11 @@ class Configuration implements ConfigurationInterface
 
         $auditors->beforeNormalization()->always(
             function (array $auditor) {
-                /** @info all storages are synchronous by default to guarantee audit persistence before the HTTP response; override synchronous_storages to enable async processing */
+                /* beforeNormalization runs before isRequired() can reject anything, so returning untouched is what lets the config tree report the missing option properly */
+                if (false === isset($auditor['storages'])) {
+                    return $auditor;
+                }
+
                 $auditor['synchronous_storages'] ??= $auditor['storages'];
 
                 $missingStorages = \array_diff($auditor['synchronous_storages'], $auditor['storages']);

@@ -25,6 +25,7 @@ use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto as StorageEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
+use PrecisionSoft\Doctrine\Audit\Exception\StorageFailureException;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -52,19 +53,10 @@ class Auditor
         $this->auditorDto = null;
     }
 
-    /**
-     * Deletions are captured in onFlush because entities are still in the identity map.
-     * Inserts and updates are deferred to postFlush so that generated identifiers (e.g. auto-increment)
-     * are available and change-sets are final.
-     */
+    /** Deletions must be captured here, while the entities are still in the identity map; inserts and updates wait for postFlush, where generated identifiers and final change-sets exist. */
     public function onFlush(OnFlushEventArgs $eventArgs): void
     {
-        /**
-         * @info SDA-102 rollback safety: clear any stale auditor dto carried over from a previous flush
-         *   whose transaction rolled back (postFlush is not dispatched on rollback and therefore never
-         *   reaches its own finally-reset). Without this, the next successful flush would emit a
-         *   phantom audit row built from the previous, rolled-back change-set.
-         */
+        /* postFlush is not dispatched on rollback, so its finally-reset never runs; without this a rolled-back change-set would produce a phantom audit row on the next flush */
         $this->auditorDto = null;
 
         try {
@@ -114,16 +106,14 @@ class Auditor
             $storageDto = $this->createStorageDto();
 
             $this->save($storageDto);
-            /** @info forces a GC cycle after each flush to prevent memory accumulation in high-volume audit scenarios */
+            /* for long-running commands whose object cycles would otherwise accumulate; measured neutral over 1000 inserts, which does not disprove the case it exists for */
             \gc_collect_cycles();
         } catch (Throwable $throwable) {
-            /**
-             * @info SDA-101 silent-audit-loss guard: the outer Doctrine transaction has already committed
-             *   by the time postFlush runs. If every configured audit sink fails, the audit row would be
-             *   silently lost. Re-queue-on-failure emits the full storage payload to the logger so the
-             *   record can be recovered or replayed out-of-band before re-throwing.
-             */
-            if (null !== $storageDto) {
+            $storedPayload = true === $throwable instanceof StorageFailureException
+                && true === $throwable->hasStoredPayload();
+
+            /* the outer transaction has already committed by the time postFlush runs, so a total sink failure loses the row silently */
+            if (null !== $storageDto && false === $storedPayload) {
                 $this->getLogger()?->critical(
                     'audit_dead_letter: every configured audit storage failed; payload preserved here for manual recovery',
                     [
@@ -139,21 +129,36 @@ class Auditor
         }
     }
 
+    /** @throws StorageFailureException if any storage rejected the payload */
     protected function save(StorageDto $storageDto): void
     {
         $exceptions = [];
+        $failedStorages = [];
+        $storedPayload = false;
 
         foreach ($this->storages as $storage) {
             try {
                 $storage->save($storageDto);
+                $storedPayload = true;
             } catch (Throwable $throwable) {
                 $exceptions[] = $throwable;
-                $this->getLogger()?->error('audit storage failed', ['exception' => $throwable]);
+                $failedStorages[] = $storage::class;
+                $this->getLogger()?->error(
+                    'audit storage failed',
+                    ['exception' => $throwable, 'storage' => $storage::class],
+                );
             }
         }
 
         if ([] !== $exceptions) {
-            throw $exceptions[0];
+            throw new StorageFailureException(
+                $exceptions,
+                $storedPayload,
+                [
+                    'failedStorages' => $failedStorages,
+                    'storedPayload' => $storedPayload,
+                ],
+            );
         }
     }
 
@@ -221,14 +226,14 @@ class Auditor
             $isOwningSide = true === $association['isOwningSide'];
 
             if (false === ($isToOne && $isOwningSide)) {
-                /** @info to-many / inverse-side association changes are surfaced through PersistentCollection entries in the change-set and are not tracked here; see SDA-106 for full collection-change support */
+                /* to-many and inverse-side association changes are not audited (README Limitations) */
                 continue;
             }
 
             $fieldChangeSet = $this->getScalarChangeSetEntry($changeSet, $field);
             $hasOldValue = null !== $fieldChangeSet;
 
-            /** @info for UPDATE the entity's new association target is $fieldChangeSet[1]; $entityData is populated from UnitOfWork::getOriginalEntityData() and therefore still holds the old reference */
+            /* index 1 is the new target; $entityData comes from getOriginalEntityData() and still holds the old reference */
             $associationData = true === $hasOldValue
                 ? $fieldChangeSet[1]
                 : ($entityData[$field] ?? null);
@@ -278,7 +283,7 @@ class Auditor
             $fieldChangeSet = $this->getScalarChangeSetEntry($changeSet, $field);
             $hasOldValue = null !== $fieldChangeSet;
 
-            /** @info for UPDATE the new value lives in $fieldChangeSet[1]; $entityData is populated from UnitOfWork::getOriginalEntityData() and therefore still holds the old value */
+            /* index 1 is the new value; $entityData comes from getOriginalEntityData() and still holds the old one */
             $fieldValue = true === $hasOldValue
                 ? $fieldChangeSet[1]
                 : ($entityData[$field] ?? null);
@@ -361,7 +366,6 @@ class Auditor
         $entry = $changeSet[$field];
 
         if (true === $entry instanceof PersistentCollection) {
-            /** @info PersistentCollection change-set entries belong to to-many associations and are not tracked here; see SDA-106 */
             return null;
         }
 
@@ -394,7 +398,8 @@ class Auditor
 
         if (true === $classMetadata->isVersioned && null !== $classMetadata->versionField) {
             $versionField = $classMetadata->versionField;
-            $originalEntityData[$versionField] = $classMetadata->reflFields[$versionField]->getValue($entity);
+            /* getFieldValue() and not $reflFields[…], which is deprecated since ORM 3.3 and removed in ORM 4 */
+            $originalEntityData[$versionField] = $classMetadata->getFieldValue($entity, $versionField);
         }
 
         return $originalEntityData;
@@ -411,7 +416,7 @@ class Auditor
 
         foreach ($this->auditorDto->getAuditEntities() as $entityDto) {
             if (false === isset($this->auditedEntities[$entityDto->getClass()])) {
-                /** @info entity not registered for auditing — skipped intentionally; this may indicate a configuration issue */
+                /* skipped silently: the class is not registered for auditing, which usually means a configuration gap */
                 continue;
             }
 

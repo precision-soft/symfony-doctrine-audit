@@ -22,7 +22,6 @@ final class EntityDtoTest extends TestCase
 
         $result = $entityDto->getClass();
 
-        static::assertIsString($result);
         static::assertSame('App\\Entity\\User', $result);
     }
 
@@ -33,7 +32,6 @@ final class EntityDtoTest extends TestCase
 
         $result = $entityDto->getIgnoredFields();
 
-        static::assertIsArray($result);
         static::assertSame($fields, $result);
     }
 

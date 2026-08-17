@@ -2,8 +2,7 @@
 
 ## Supported versions
 
-Symfony Doctrine Audit follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The latest stable major
-line is actively maintained and receives security fixes.
+Symfony Doctrine Audit follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The latest stable major line is actively maintained and receives security fixes.
 
 | Version | Status              | Security fixes |
 |---------|---------------------|----------------|

@@ -1,4 +1,5 @@
 /vendor/
+/.dev-data/
 /.idea/
 /auth.json
 /.php-cs-fixer.cache
@@ -7,10 +8,11 @@
 /.phpunit.cache/
 /phpunit.xml
 /var/
+/*.zip
+/*.tar.gz
 /.claude/
 /CLAUDE.md
 /AUDIT_REPORT.md
-.dev/docker/.env.local
-/*.tar.gz
+.dev/docker/docker-compose.override.yml
 /.temp/
 /diff*.txt

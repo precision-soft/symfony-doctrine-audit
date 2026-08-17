@@ -36,10 +36,10 @@ final class StorageTest extends AbstractTestCase
         return new MockDto(stdClass::class);
     }
 
-    private EntityManagerInterface|MockInterface $entityManager;
+    private EntityManagerInterface&MockInterface $entityManager;
     private Configuration $configuration;
-    private Connection|MockInterface $connection;
-    private AbstractPlatform|MockInterface $platform;
+    private Connection&MockInterface $connection;
+    private AbstractPlatform&MockInterface $platform;
 
     protected function setUp(): void
     {
@@ -73,12 +73,10 @@ final class StorageTest extends AbstractTestCase
         $transaction = new TransactionDto('admin');
         $storageDto = new StorageDto($transaction, []);
 
-        /** @info should not call insert on connection */
+        $this->connection->shouldNotReceive('beginTransaction');
         $this->connection->shouldNotReceive('insert');
 
         $storage->save($storageDto);
-
-        static::assertSame(true, true);
     }
 
     public function testSaveInsertsTransactionAndEntity(): void
@@ -93,7 +91,6 @@ final class StorageTest extends AbstractTestCase
         $transaction = new TransactionDto('admin');
         $storageDto = new StorageDto($transaction, [$entity]);
 
-        /** @info getTransactionId inserts into transaction table */
         $this->connection->shouldReceive('insert')
             ->once()
             ->with(
@@ -154,7 +151,6 @@ final class StorageTest extends AbstractTestCase
         $this->platform->shouldReceive('quoteIdentifier')
             ->andReturnUsing(fn(string $s) => '"' . $s . '"');
 
-        /** @info should call executeStatement twice, once per entity */
         $this->connection->shouldReceive('executeStatement')
             ->twice()
             ->with(

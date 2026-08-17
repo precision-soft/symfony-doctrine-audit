@@ -18,8 +18,14 @@ use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use PrecisionSoft\Doctrine\Audit\Test\Entity\TwoEntity;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\AuditedSubject;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\CarVehicle;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\CircleShape;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\InheritingSubject;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\SquareShape;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
+use Proxies\__CG__\PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\AuditedSubject as AuditedSubjectProxy;
 use ReflectionClass;
 use stdClass;
 
@@ -81,6 +87,7 @@ final class AnnotationReadServiceTest extends AbstractTestCase
 
             $entityDto = $this->annotationReadService->buildEntityDto($classMetadata);
 
+            static::assertNotNull($entityDto);
             static::assertSame($entity, $entityDto->getClass());
             static::assertSame($ignoredFields, $entityDto->getIgnoredFields());
         }
@@ -124,7 +131,8 @@ final class AnnotationReadServiceTest extends AbstractTestCase
 
         $entityDtos = $this->annotationReadService->read($entityManagerInterfaceMock);
 
-        static::assertIsArray($entityDtos);
+        /* counted rather than type-checked: an empty result would leave the loop below asserting nothing */
+        static::assertCount(2, $entityDtos);
 
         foreach ($entityDtos as $entityDto) {
             $expected = TwoEntity::class === $entityDto->getClass() ? 1 : 0;
@@ -132,5 +140,39 @@ final class AnnotationReadServiceTest extends AbstractTestCase
             static::assertInstanceOf(EntityDto::class, $entityDto);
             static::assertSame($expected, \count($entityDto->getIgnoredFields()));
         }
+    }
+
+    public function testGetEntityClassStripsTheDoctrineProxyMarker(): void
+    {
+        static::assertSame(
+            AuditedSubject::class,
+            $this->annotationReadService->getEntityClass(new AuditedSubjectProxy()),
+        );
+    }
+
+    public function testAuditableIsInheritedAndCanBeSwitchedOffOnAChild(): void
+    {
+        static::assertNotNull($this->buildEntityDtoFor(CircleShape::class));
+
+        static::assertNull($this->buildEntityDtoFor(SquareShape::class));
+
+        static::assertNotNull($this->buildEntityDtoFor(CarVehicle::class));
+    }
+
+    public function testIgnoreIsReadFromAPrivateMappedSuperclassProperty(): void
+    {
+        $entityDto = $this->buildEntityDtoFor(InheritingSubject::class);
+
+        static::assertNotNull($entityDto);
+        static::assertSame(['password'], $entityDto->getIgnoredFields());
+    }
+
+    /** @param class-string $class */
+    private function buildEntityDtoFor(string $class): ?EntityDto
+    {
+        $classMetadata = new MappingClassMetadata($class);
+        $classMetadata->initializeReflection(new RuntimeReflectionService());
+
+        return $this->annotationReadService->buildEntityDto($classMetadata);
     }
 }

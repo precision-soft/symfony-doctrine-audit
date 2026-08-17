@@ -35,6 +35,16 @@ final class FileStorageTest extends TestCase
         }
     }
 
+    /* the assert is load-bearing: trim(false) is '' and every assertion below would pass on an empty string */
+    private function readStorageFile(): string
+    {
+        $contents = \file_get_contents($this->tmpFile);
+
+        static::assertNotFalse($contents, \sprintf('could not read `%s`', $this->tmpFile));
+
+        return \trim($contents);
+    }
+
     public function testSaveWritesJsonlLine(): void
     {
         $storage = new FileStorage($this->tmpFile, null);
@@ -50,7 +60,7 @@ final class FileStorageTest extends TestCase
 
         static::assertFileExists($this->tmpFile);
 
-        $line = \trim(\file_get_contents($this->tmpFile));
+        $line = $this->readStorageFile();
         $decoded = \json_decode($line, true);
 
         static::assertSame('admin', $decoded['username']);
@@ -74,7 +84,7 @@ final class FileStorageTest extends TestCase
 
         $storage->save($storageDto);
 
-        $line = \trim(\file_get_contents($this->tmpFile));
+        $line = $this->readStorageFile();
         $decoded = \json_decode($line, true);
 
         $nameValue = $decoded['entities'][0]['columns']['name'];
@@ -94,7 +104,7 @@ final class FileStorageTest extends TestCase
 
         $storage->save($storageDto);
 
-        $line = \trim(\file_get_contents($this->tmpFile));
+        $line = $this->readStorageFile();
         $decoded = \json_decode($line, true);
 
         static::assertArrayHasKey('extras', $decoded);
@@ -113,7 +123,7 @@ final class FileStorageTest extends TestCase
         $storage->save($storageDto);
         $storage->save($storageDto);
 
-        $lines = \array_filter(\explode(\PHP_EOL, \trim(\file_get_contents($this->tmpFile))));
+        $lines = \array_filter(\explode(\PHP_EOL, $this->readStorageFile()));
         static::assertCount(2, $lines);
     }
 }

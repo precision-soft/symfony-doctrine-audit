@@ -36,7 +36,7 @@ final class UpdateCommandTest extends AbstractTestCase
         $metadatas = [];
         $sqlStatements = ['ALTER TABLE audit_user'];
 
-        /** @var SchemaTool|MockInterface $schemaTool */
+        /** @var SchemaTool&MockInterface $schemaTool */
         $schemaTool = Mockery::mock(SchemaTool::class);
         $schemaTool->shouldReceive('getUpdateSchemaSql')
             ->once()
@@ -54,7 +54,7 @@ final class UpdateCommandTest extends AbstractTestCase
 
         $metadatas = [];
 
-        /** @var SchemaTool|MockInterface $schemaTool */
+        /** @var SchemaTool&MockInterface $schemaTool */
         $schemaTool = Mockery::mock(SchemaTool::class);
         $schemaTool->shouldReceive('updateSchema')
             ->once()

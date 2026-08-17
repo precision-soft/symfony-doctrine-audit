@@ -10,11 +10,11 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Trait;
 
 use Mockery;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
-use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\ThrowTraitUser;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
-use Throwable;
+use RuntimeException;
 
 /**
  * @internal
@@ -28,23 +28,9 @@ final class ThrowTraitTest extends AbstractTestCase
         );
     }
 
-    private function createThrowableClass(?LoggerInterface $logger): object
+    private function createThrowableClass(?LoggerInterface $logger): ThrowTraitUser
     {
-        return new class ($logger) {
-            use ThrowTrait;
-
-            public function __construct(private readonly ?LoggerInterface $logger) {}
-
-            private function getLogger(): ?LoggerInterface
-            {
-                return $this->logger;
-            }
-
-            public function doThrow(Throwable $throwable, array $logContext = []): void
-            {
-                $this->throw($throwable, $logContext);
-            }
-        };
+        return new ThrowTraitUser($logger);
     }
 
     public function testThrowWrapsExceptionInAuditException(): void
@@ -70,7 +56,7 @@ final class ThrowTraitTest extends AbstractTestCase
         $logger->shouldReceive('error')
             ->once()
             ->with(
-                Mockery::pattern('/log me/'),
+                ThrowTraitUser::class . ': log me',
                 Mockery::on(function (array $context): bool {
                     static::assertArrayHasKey('code', $context);
                     static::assertArrayHasKey('file', $context);
@@ -145,5 +131,33 @@ final class ThrowTraitTest extends AbstractTestCase
         }
 
         static::fail('Expected Exception was not thrown');
+    }
+
+    public function testThrowCarriesTheContextOfTheWrappedExceptionForward(): void
+    {
+        $throwTraitUser = $this->createThrowableClass(null);
+
+        $original = new Exception('storage rejected the payload', 0, null, ['failedStorages' => ['SomeStorage']]);
+
+        try {
+            $throwTraitUser->doThrow($original);
+
+            static::fail('Expected Exception was not thrown');
+        } catch (Exception $exception) {
+            static::assertSame(['failedStorages' => ['SomeStorage']], $exception->getContext());
+        }
+    }
+
+    public function testThrowLeavesTheContextEmptyForAForeignThrowable(): void
+    {
+        $throwTraitUser = $this->createThrowableClass(null);
+
+        try {
+            $throwTraitUser->doThrow(new RuntimeException('not one of ours'));
+
+            static::fail('Expected Exception was not thrown');
+        } catch (Exception $exception) {
+            static::assertSame([], $exception->getContext());
+        }
     }
 }

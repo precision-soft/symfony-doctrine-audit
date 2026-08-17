@@ -23,7 +23,6 @@ final class ConfigurationTest extends TestCase
 
         $ignoredFields = $configuration->getIgnoredFields();
 
-        static::assertIsArray($ignoredFields);
         static::assertSame($fields, $ignoredFields);
     }
 

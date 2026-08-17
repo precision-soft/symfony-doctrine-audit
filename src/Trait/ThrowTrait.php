@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Trait;
 
+use PrecisionSoft\Doctrine\Audit\Contract\ExceptionInterface;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -33,6 +34,14 @@ trait ThrowTrait
             );
         }
 
-        throw new Exception($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
+        /* the rewrap is what a consumer catches, so the context has to travel with it or the facts end up one link down the previous chain, where getContext() will not look */
+        $context = true === $throwable instanceof ExceptionInterface ? $throwable->getContext() : [];
+
+        throw new Exception(
+            $throwable->getMessage(),
+            (int)$throwable->getCode(),
+            $throwable,
+            [] === $context ? null : $context,
+        );
     }
 }

@@ -91,37 +91,73 @@ class AnnotationReadService implements AnnotationReadServiceInterface
             return $this->entityDtoCache[$className] = null;
         }
 
-        $ignoredFields = [];
-
-        foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-            if (false === $this->hasIgnoreAttribute($reflectionProperty)) {
-                continue;
-            }
-
-            $field = $reflectionProperty->getName();
-
-            if (true === $classMetadata->isIdentifier($field)) {
-                continue;
-            }
-
-            $ignoredFields[] = $field;
-        }
-
-        return $this->entityDtoCache[$className] = new EntityDto($className, $ignoredFields);
+        return $this->entityDtoCache[$className] = new EntityDto(
+            $className,
+            $this->readIgnoredFields($reflectionClass, $classMetadata),
+        );
     }
 
-    /** @param ReflectionClass<object> $reflectionClass */
-    protected function hasAuditableAttribute(ReflectionClass $reflectionClass): bool
+    /**
+     * The hierarchy is walked because `getProperties()` does not return a parent's private properties, while Doctrine merges a mapped superclass's fields into the child's metadata; the most-derived declaration wins.
+     *
+     * @phpstan-param ClassMetadata<object> $classMetadata
+     * @param ReflectionClass<object> $reflectionClass
+     * @return string[]
+     */
+    protected function readIgnoredFields(ReflectionClass $reflectionClass, ClassMetadata $classMetadata): array
     {
-        $attributes = $reflectionClass->getAttributes(Auditable::class);
+        $ignoredFields = [];
+        $visitedFields = [];
 
-        if ([] === $attributes) {
-            return false;
+        $currentClass = $reflectionClass;
+
+        while (false !== $currentClass) {
+            foreach ($currentClass->getProperties() as $reflectionProperty) {
+                $field = $reflectionProperty->getName();
+
+                if (true === isset($visitedFields[$field])) {
+                    continue;
+                }
+
+                $visitedFields[$field] = true;
+
+                if (false === $this->hasIgnoreAttribute($reflectionProperty)) {
+                    continue;
+                }
+
+                if (true === $classMetadata->isIdentifier($field)) {
+                    continue;
+                }
+
+                $ignoredFields[] = $field;
+            }
+
+            $currentClass = $currentClass->getParentClass();
         }
 
-        $auditable = $attributes[0]->newInstance();
+        return $ignoredFields;
+    }
 
-        return true === $auditable->enabled;
+    /**
+     * The hierarchy is walked because `getAttributes()` does not return a parent's attributes; the walk stops at the nearest declaration whatever it says, which is what makes `#[Auditable(false)]` on a child an opt-out.
+     *
+     * @param ReflectionClass<object> $reflectionClass
+     */
+    protected function hasAuditableAttribute(ReflectionClass $reflectionClass): bool
+    {
+        $currentClass = $reflectionClass;
+
+        while (false !== $currentClass) {
+            $attributes = $currentClass->getAttributes(Auditable::class);
+
+            if ([] !== $attributes) {
+                return true === $attributes[0]->newInstance()->enabled;
+            }
+
+            $currentClass = $currentClass->getParentClass();
+        }
+
+        return false;
     }
 
     /** @param ReflectionClass<object> $reflectionClass */

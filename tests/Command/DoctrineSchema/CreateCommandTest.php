@@ -36,7 +36,7 @@ final class CreateCommandTest extends AbstractTestCase
         $metadatas = [];
         $sqlStatements = ['CREATE TABLE audit_user'];
 
-        /** @var SchemaTool|MockInterface $schemaTool */
+        /** @var SchemaTool&MockInterface $schemaTool */
         $schemaTool = Mockery::mock(SchemaTool::class);
         $schemaTool->shouldReceive('getCreateSchemaSql')
             ->once()
@@ -54,7 +54,7 @@ final class CreateCommandTest extends AbstractTestCase
 
         $metadatas = [];
 
-        /** @var SchemaTool|MockInterface $schemaTool */
+        /** @var SchemaTool&MockInterface $schemaTool */
         $schemaTool = Mockery::mock(SchemaTool::class);
         $schemaTool->shouldReceive('createSchema')
             ->once()

@@ -262,19 +262,21 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $auditorEntityManagerReference = $this->getEntityManager($auditorEntityManager);
         $storageEntityManagerReference = $this->getEntityManager($storageEntityManager);
 
+        /* the storage name is part of the id and of the command name: an auditor may have several doctrine storages, and keying on the auditor alone lets the second one's commands replace the first's */
         $defineCommand = function (
             string $commandClass,
             string $commandName,
         ) use (
             $containerBuilder,
             $auditorName,
+            $storageName,
             $auditorEntityManagerReference,
             $storageEntityManagerReference
         ): void {
             $definition = new Definition(
                 $commandClass,
                 [
-                    \sprintf('%s:schema:%s:%s', static::BASE_COMMAND_NAME, $commandName, $auditorName),
+                    \sprintf('%s:schema:%s:%s:%s', static::BASE_COMMAND_NAME, $commandName, $auditorName, $storageName),
                     $auditorEntityManagerReference,
                     $storageEntityManagerReference,
                     new Reference(AnnotationReadService::class),
@@ -284,7 +286,7 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
             $definition->addTag('console.command');
 
             $containerBuilder->setDefinition(
-                $this->getCommandId(\sprintf('%s.%s', $commandName, $auditorName)),
+                $this->getCommandId(\sprintf('%s.%s.%s', $commandName, $auditorName, $storageName)),
                 $definition,
             );
         };

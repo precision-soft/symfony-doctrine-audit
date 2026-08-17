@@ -8,9 +8,11 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Test\EventSubscriber;
 
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
@@ -24,6 +26,7 @@ use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto;
 use PrecisionSoft\Doctrine\Audit\EventSubscriber\DoctrineSchemaListener;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration as StorageConfiguration;
+use PrecisionSoft\Doctrine\Audit\Test\Entity\OneEntity;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use stdClass;
@@ -38,7 +41,7 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
         return new MockDto(stdClass::class);
     }
 
-    private AnnotationReadServiceInterface|MockInterface $annotationReadService;
+    private AnnotationReadServiceInterface&MockInterface $annotationReadService;
     private AuditorConfiguration $auditorConfiguration;
     private StorageConfiguration $storageConfiguration;
 
@@ -113,6 +116,38 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
         $listener->postGenerateSchemaTable($eventArgs);
     }
 
+    public function testPostGenerateSchemaTableCarriesTheEntityTableNameInTheExceptionContext(): void
+    {
+        $listener = $this->createListener();
+
+        $classMetadata = new ClassMetadata(stdClass::class);
+
+        $this->annotationReadService->shouldReceive('buildEntityDto')
+            ->once()
+            ->andThrow(new Exception('metadata failure'));
+
+        $schema = Mockery::mock(Schema::class);
+        $schema->shouldReceive('dropTable')->once();
+
+        $entityTable = Mockery::mock(Table::class);
+        $entityTable->shouldReceive('getName')->andReturn('fail_table');
+
+        $eventArgs = Mockery::mock(GenerateSchemaTableEventArgs::class);
+        $eventArgs->shouldReceive('getClassMetadata')->once()->andReturn($classMetadata);
+        $eventArgs->shouldReceive('getSchema')->once()->andReturn($schema);
+        $eventArgs->shouldReceive('getClassTable')->once()->andReturn($entityTable);
+
+        try {
+            $listener->postGenerateSchemaTable($eventArgs);
+
+            static::fail('postGenerateSchemaTable was expected to throw');
+        } catch (Exception $exception) {
+            static::assertSame(['entityTableName' => 'fail_table'], $exception->getContext());
+
+            static::assertSame('`fail_table` => `metadata failure`', $exception->getMessage());
+        }
+    }
+
     public function testPostGenerateSchemaTableThrowsWhenEntityTableHasNoPrimaryKey(): void
     {
         $listener = $this->createListener();
@@ -135,7 +170,6 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         $entityTable = Mockery::mock(Table::class);
         $entityTable->shouldReceive('getName')->andReturn('no_pk_table');
-        /** @info the table has no primary key; in production (assertions off) this previously crashed with a "method on null" fatal */
         $entityTable->shouldReceive('getPrimaryKey')->once()->andReturnNull();
 
         $schema = Mockery::mock(Schema::class);
@@ -164,11 +198,11 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         $transactionTable = Mockery::mock(Table::class);
         $transactionTable->shouldReceive('addColumn')
-            ->with('id', 'integer', Mockery::type('array'))
+            ->with('id', 'integer', ['autoincrement' => true, 'notnull' => true])
             ->once()
             ->andReturn($idColumn);
         $transactionTable->shouldReceive('addColumn')
-            ->with('username', Types::STRING, Mockery::type('array'))
+            ->with('username', Types::STRING, ['length' => 500])
             ->once()
             ->andReturn($usernameColumn);
         $extrasColumn = Mockery::mock(Column::class);
@@ -214,10 +248,10 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         $transactionTable = Mockery::mock(Table::class);
         $transactionTable->shouldReceive('addColumn')
-            ->with('id', 'integer', Mockery::type('array'))
+            ->with('id', 'integer', ['autoincrement' => true, 'notnull' => true])
             ->andReturn($idColumn);
         $transactionTable->shouldReceive('addColumn')
-            ->with('username', Types::STRING, Mockery::type('array'))
+            ->with('username', Types::STRING, ['length' => 500])
             ->andReturn($usernameColumn);
         $extrasColumn = Mockery::mock(Column::class);
         $extrasColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
@@ -266,10 +300,10 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         $transactionTable = Mockery::mock(Table::class);
         $transactionTable->shouldReceive('addColumn')
-            ->with('id', 'integer', Mockery::type('array'))
+            ->with('id', 'integer', ['autoincrement' => true, 'notnull' => true])
             ->andReturn($idColumn);
         $transactionTable->shouldReceive('addColumn')
-            ->with('username', Types::STRING, Mockery::type('array'))
+            ->with('username', Types::STRING, ['length' => 500])
             ->andReturn($usernameColumn);
         $extrasColumn = Mockery::mock(Column::class);
         $extrasColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
@@ -283,7 +317,6 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
         $transactionTable->shouldReceive('setPrimaryKey')
             ->with(['id']);
 
-        /** @info the transaction table itself should not get a foreign key */
         $txnTableInList = Mockery::mock(Table::class);
         $txnTableInList->shouldReceive('getName')->andReturn('audit_transaction');
         $txnTableInList->shouldNotReceive('addForeignKeyConstraint');
@@ -316,5 +349,85 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
         $this->expectExceptionMessage('`audit_transaction` => `create failed`');
 
         $listener->postGenerateSchema($eventArgs);
+    }
+
+    public function testPostGenerateSchemaTableBuildsTheAuditTableForAnAuditableEntity(): void
+    {
+        $listener = $this->createListener();
+
+        $classMetadata = new ClassMetadata(OneEntity::class);
+        $classMetadata->mapField(['fieldName' => 'id', 'type' => 'integer', 'columnName' => 'id', 'id' => true]);
+        $classMetadata->mapField(['fieldName' => 'name', 'type' => 'string', 'columnName' => 'name', 'length' => 64]);
+        $classMetadata->mapField(['fieldName' => 'description', 'type' => 'string', 'columnName' => 'description', 'length' => 64]);
+        $classMetadata->table = ['name' => 'one_entity'];
+
+        $this->annotationReadService->shouldReceive('buildEntityDto')
+            ->once()
+            ->with($classMetadata)
+            ->andReturn(new EntityDto(OneEntity::class, ['description']));
+
+        $schema = new Schema();
+        $entityTable = $schema->createTable('one_entity');
+        $entityTable->addColumn('id', Types::INTEGER, ['autoincrement' => true]);
+        $entityTable->addColumn('name', Types::STRING, ['length' => 64]);
+        $entityTable->addColumn('description', Types::STRING, ['length' => 64]);
+        $entityTable->setPrimaryKey(['id']);
+
+        $listener->postGenerateSchemaTable(
+            new GenerateSchemaTableEventArgs($classMetadata, $schema, $entityTable),
+        );
+
+        static::assertTrue($schema->hasTable('one_entity'));
+
+        $auditTable = $schema->getTable('one_entity');
+
+        static::assertTrue($auditTable->hasColumn('id'));
+        static::assertTrue($auditTable->hasColumn('name'));
+        static::assertTrue($auditTable->hasColumn('audit_transaction_id'));
+        static::assertTrue($auditTable->hasColumn('audit_operation'));
+
+        static::assertFalse($auditTable->hasColumn('description'));
+
+        $primaryKey = $auditTable->getPrimaryKey();
+        static::assertNotNull($primaryKey);
+        static::assertSame(['id', 'audit_transaction_id'], $primaryKey->getColumns());
+
+        static::assertFalse($auditTable->getColumn('id')->getAutoincrement());
+        static::assertFalse($auditTable->getColumn('name')->getNotnull());
+
+        static::assertSame(Type::getType(Types::ENUM), $auditTable->getColumn('audit_operation')->getType());
+        static::assertSame(['delete', 'insert', 'update'], $auditTable->getColumn('audit_operation')->getValues());
+
+        static::assertTrue($auditTable->getColumn('audit_operation')->getNotnull());
+    }
+
+    public function testTheGeneratedAuditTableCanBeEmittedAsCreateTableSql(): void
+    {
+        $listener = $this->createListener();
+
+        $classMetadata = new ClassMetadata(OneEntity::class);
+        $classMetadata->mapField(['fieldName' => 'id', 'type' => 'integer', 'columnName' => 'id', 'id' => true]);
+        $classMetadata->mapField(['fieldName' => 'name', 'type' => 'string', 'columnName' => 'name', 'length' => 64]);
+        $classMetadata->table = ['name' => 'one_entity'];
+
+        $this->annotationReadService->shouldReceive('buildEntityDto')
+            ->once()
+            ->with($classMetadata)
+            ->andReturn(new EntityDto(OneEntity::class, []));
+
+        $schema = new Schema();
+        $entityTable = $schema->createTable('one_entity');
+        $entityTable->addColumn('id', Types::INTEGER, ['autoincrement' => true]);
+        $entityTable->addColumn('name', Types::STRING, ['length' => 64]);
+        $entityTable->setPrimaryKey(['id']);
+
+        $listener->postGenerateSchemaTable(
+            new GenerateSchemaTableEventArgs($classMetadata, $schema, $entityTable),
+        );
+
+        $createTableSql = \implode(' ', (new MySQLPlatform())->getCreateTableSQL($schema->getTable('one_entity')));
+
+        static::assertStringContainsString("ENUM('delete', 'insert', 'update') NOT NULL", $createTableSql);
+        static::assertStringContainsString('audit_transaction_id', $createTableSql);
     }
 }

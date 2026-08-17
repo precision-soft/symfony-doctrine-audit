@@ -1,10 +1,27 @@
 includes:
-    - phpstan-baseline.neon
+    - vendor/phpstan/phpstan-mockery/extension.neon
 
 parameters:
     level: 8
     paths:
         - src/
         - tests/
-    bootstrapFiles:
-        - vendor/bin/.phpunit/phpunit-11.5-0/vendor/autoload.php
+
+    # This repository carries no baseline. Both entries below are false positives coming from an
+    # incorrect vendor annotation, and each states why - a suppression is a claim, and an unexplained
+    # one is worse than none.
+    ignoreErrors:
+        # DBAL declares `Table::getColumns(): non-empty-list<Column>` and then suppresses its own
+        # `return.type` error on the very next line, because `array_values([])` is `[]`. Measured: a
+        # table whose every column has been dropped really does return `[]`, so this guard is live and
+        # is what stops an entity with all fields ignored from reaching the primary-key check below it.
+        -
+            identifier: identical.alwaysFalse
+            path: src/EventSubscriber/DoctrineSchemaListener.php
+
+        # Doctrine writes a generated identifier straight onto the property through reflection, so nothing in
+        # this repository ever assigns `$id` an int and PHPStan concludes the nullable half of the type is the
+        # only half. The union is what Doctrine requires: null before the flush, an int after it.
+        -
+            identifier: property.unusedType
+            path: tests/Utility/Entity/*
