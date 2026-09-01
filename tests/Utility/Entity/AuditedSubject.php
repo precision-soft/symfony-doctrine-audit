@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Test\Utility\Entity;
 
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use PrecisionSoft\Doctrine\Audit\Attribute\Auditable;
 use PrecisionSoft\Doctrine\Audit\Attribute\Ignore;
@@ -36,6 +38,16 @@ class AuditedSubject
     #[ORM\ManyToOne(targetEntity: RelatedSubject::class)]
     #[ORM\JoinColumn(name: 'related_subject_id', referencedColumnName: 'id', nullable: true)]
     private ?RelatedSubject $related = null;
+
+    /** @var Collection<int, RelatedSubject> */
+    #[ORM\ManyToMany(targetEntity: RelatedSubject::class)]
+    #[ORM\JoinTable(name: 'audited_subject_related')]
+    private Collection $relatedSubjects;
+
+    public function __construct()
+    {
+        $this->relatedSubjects = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -88,5 +100,11 @@ class AuditedSubject
         $this->related = $related;
 
         return $this;
+    }
+
+    /** @return Collection<int, RelatedSubject> */
+    public function getRelatedSubjects(): Collection
+    {
+        return $this->relatedSubjects;
     }
 }

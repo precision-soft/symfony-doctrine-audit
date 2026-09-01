@@ -26,6 +26,9 @@
     // Without a threshold infection prints a score and exits 0, so the gate section could never fail.
     // These are the measured baseline rounded down, not an aspiration: raise them when the score
     // improves, and never lower one to make a run pass.
+    // Measured 74.2% as of v4.0.0. Left at 73 deliberately: rounding down to 74 would leave about two mutants of
+    // headroom out of nine hundred, and the gate would then fail on unrelated commits. Raise it when the margin is
+    // worth more than one point.
     minMsi: 73,
     minCoveredMsi: 73,
     mutators: {

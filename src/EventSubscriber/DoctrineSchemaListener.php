@@ -79,11 +79,22 @@ class DoctrineSchemaListener
             $transactionTable->addColumn('username', Types::STRING, ['length' => 500])->setNotnull(false);
             $transactionTable->addColumn('created', Types::DATETIME_IMMUTABLE);
             $transactionTable->addColumn('extras', Types::TEXT)->setNotnull(false);
+            $transactionTable->addColumn(
+                $this->storageConfiguration->getCollectionChangesColumnName(),
+                Types::JSON,
+            )->setNotnull(false);
 
             $transactionTable->setPrimaryKey(['id']);
 
             foreach ($schema->getTables() as $table) {
                 if ($this->storageConfiguration->getTransactionTableName() === $table->getName()) {
+                    continue;
+                }
+
+                /* Anything without the transaction id column is not an audit table - a many-to-many join table, say - and constraining it would throw on the missing local column and take the whole audit schema down. */
+                if (false === $table->hasColumn($this->storageConfiguration->getTransactionIdColumnName())) {
+                    $schema->dropTable($table->getName());
+
                     continue;
                 }
 

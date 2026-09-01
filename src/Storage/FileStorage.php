@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Audit\Storage;
 use DateTimeImmutable;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
+use PrecisionSoft\Doctrine\Audit\Storage\Trait\FileLockTrait;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -19,6 +20,7 @@ use Throwable;
 
 class FileStorage implements StorageInterface
 {
+    use FileLockTrait;
     use ThrowTrait;
 
     protected readonly Filesystem $filesystem;
@@ -34,17 +36,36 @@ class FileStorage implements StorageInterface
 
     public function save(StorageDto $storageDto): void
     {
-        if ([] === $storageDto->getEntities()) {
+        if ([] === $storageDto->getEntities() && [] === $storageDto->getCollectionChanges()) {
             return;
         }
 
         try {
             $transaction = $this->buildTransaction($storageDto);
 
-            $this->filesystem->appendToFile($this->file, $transaction . \PHP_EOL);
+            $this->appendTransaction($transaction . \PHP_EOL);
         } catch (Throwable $throwable) {
             $this->throw($throwable);
         }
+    }
+
+    protected function appendTransaction(string $transaction): void
+    {
+        $this->filesystem->mkdir(\dirname($this->file));
+
+        $handle = $this->openLocked($this->file, 'ab', \LOCK_EX);
+
+        try {
+            $this->writeAll($handle, $transaction);
+            $this->flushAll($handle);
+        } finally {
+            $this->unlock($handle);
+        }
+    }
+
+    protected function getAuditFile(): string
+    {
+        return $this->file;
     }
 
     protected function getLogger(): ?LoggerInterface
@@ -79,6 +100,10 @@ class FileStorage implements StorageInterface
             'date' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
             'entities' => $entities,
         ];
+
+        if ([] !== $storageDto->getCollectionChanges()) {
+            $transaction['collections'] = $storageDto->getCollectionChangesAsArray();
+        }
 
         if ([] !== $transactionDto->getExtras()) {
             $transaction['extras'] = $transactionDto->getExtras();

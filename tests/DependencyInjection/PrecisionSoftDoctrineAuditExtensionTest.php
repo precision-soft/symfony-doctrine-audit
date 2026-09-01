@@ -10,11 +10,16 @@ namespace PrecisionSoft\Doctrine\Audit\Test\DependencyInjection;
 
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Auditor\Auditor;
+use PrecisionSoft\Doctrine\Audit\Command\Audit\PurgeCommand;
+use PrecisionSoft\Doctrine\Audit\Command\Audit\ReadCommand;
 use PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema\CreateCommand;
 use PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema\UpdateCommand;
+use PrecisionSoft\Doctrine\Audit\Contract\AuditPurgerInterface;
+use PrecisionSoft\Doctrine\Audit\Contract\AuditReaderInterface;
 use PrecisionSoft\Doctrine\Audit\DependencyInjection\PrecisionSoftDoctrineAuditExtension;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Storage as DoctrineStorage;
+use PrecisionSoft\Doctrine\Audit\Storage\FileAuditReader;
 use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -184,6 +189,117 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
 
         static::assertInstanceOf(Reference::class, $arguments[1]);
         static::assertSame($logger, (string)$arguments[1]);
+    }
+
+    public function testFileStorageRegistersAReaderOnTheSameFile(): void
+    {
+        $storageName = 'file_store';
+        $file = '/var/log/audit.log';
+
+        $containerBuilder = $this->buildContainer([
+            'storages' => $this->validFileStorageConfig($storageName, $file),
+            'auditors' => $this->validAuditorConfig([$storageName]),
+        ]);
+
+        $serviceId = \sprintf('precision_soft_doctrine_audit.storage.%s.reader', $storageName);
+
+        static::assertTrue($containerBuilder->hasDefinition($serviceId));
+
+        $definition = $containerBuilder->getDefinition($serviceId);
+
+        static::assertSame(FileAuditReader::class, $definition->getClass());
+        static::assertSame([$file], $definition->getArguments());
+    }
+
+    public function testASingleFileStorageAliasesTheReaderAndPurgerContracts(): void
+    {
+        $storageName = 'file_store';
+
+        $containerBuilder = $this->buildContainer([
+            'storages' => $this->validFileStorageConfig($storageName, '/var/log/audit.log'),
+            'auditors' => $this->validAuditorConfig([$storageName]),
+        ]);
+
+        $readerServiceId = \sprintf('precision_soft_doctrine_audit.storage.%s.reader', $storageName);
+
+        static::assertTrue($containerBuilder->hasAlias(AuditReaderInterface::class));
+        static::assertTrue($containerBuilder->hasAlias(AuditPurgerInterface::class));
+        static::assertSame($readerServiceId, (string)$containerBuilder->getAlias(AuditReaderInterface::class));
+        static::assertSame($readerServiceId, (string)$containerBuilder->getAlias(AuditPurgerInterface::class));
+    }
+
+    public function testTwoFileStoragesLeaveTheContractsUnaliased(): void
+    {
+        $containerBuilder = $this->buildContainer([
+            'storages' => [
+                ...$this->validFileStorageConfig('first_file', '/var/log/first.log'),
+                ...$this->validFileStorageConfig('second_file', '/var/log/second.log'),
+            ],
+            'auditors' => $this->validAuditorConfig(['first_file', 'second_file']),
+        ]);
+
+        static::assertFalse($containerBuilder->hasAlias(AuditReaderInterface::class));
+        static::assertFalse($containerBuilder->hasAlias(AuditPurgerInterface::class));
+        static::assertTrue(
+            $containerBuilder->hasDefinition('precision_soft_doctrine_audit.storage.first_file.reader'),
+        );
+        static::assertTrue(
+            $containerBuilder->hasDefinition('precision_soft_doctrine_audit.storage.second_file.reader'),
+        );
+    }
+
+    public function testADoctrineOnlySetupLeavesTheContractsUnaliased(): void
+    {
+        $containerBuilder = $this->buildContainer([
+            'storages' => $this->validDoctrineStorageConfig('doctrine_store', 'default'),
+            'auditors' => $this->validAuditorConfig(['doctrine_store']),
+        ]);
+
+        static::assertFalse($containerBuilder->hasAlias(AuditReaderInterface::class));
+        static::assertFalse($containerBuilder->hasAlias(AuditPurgerInterface::class));
+    }
+
+    public function testFileStorageRegistersReadAndPurgeCommands(): void
+    {
+        $storageName = 'file_store';
+
+        $containerBuilder = $this->buildContainer([
+            'storages' => $this->validFileStorageConfig($storageName, '/var/log/audit.log'),
+            'auditors' => $this->validAuditorConfig([$storageName]),
+        ]);
+
+        foreach ([ReadCommand::class => 'read', PurgeCommand::class => 'purge'] as $commandClass => $commandName) {
+            $serviceId = \sprintf(
+                'precision_soft_doctrine_audit.command.%s.%s.%s',
+                $commandName,
+                static::AUDITOR_NAME,
+                $storageName,
+            );
+
+            static::assertTrue($containerBuilder->hasDefinition($serviceId));
+
+            $definition = $containerBuilder->getDefinition($serviceId);
+
+            static::assertSame($commandClass, $definition->getClass());
+            static::assertArrayHasKey('console.command', $definition->getTags());
+
+            $arguments = $definition->getArguments();
+
+            static::assertSame(
+                \sprintf(
+                    'precision-soft:doctrine:audit:%s:%s:%s',
+                    $commandName,
+                    static::AUDITOR_NAME,
+                    $storageName,
+                ),
+                $arguments[0],
+            );
+            static::assertInstanceOf(Reference::class, $arguments[1]);
+            static::assertSame(
+                \sprintf('precision_soft_doctrine_audit.storage.%s.reader', $storageName),
+                (string)$arguments[1],
+            );
+        }
     }
 
     public function testCustomStorageDefinition(): void

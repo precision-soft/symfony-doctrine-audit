@@ -12,13 +12,18 @@ use Doctrine\ORM\Events;
 use Doctrine\ORM\Tools\ToolEvents;
 use PrecisionSoft\Doctrine\Audit\Auditor\Auditor;
 use PrecisionSoft\Doctrine\Audit\Auditor\Configuration as AuditorConfig;
+use PrecisionSoft\Doctrine\Audit\Command\Audit\PurgeCommand;
+use PrecisionSoft\Doctrine\Audit\Command\Audit\ReadCommand;
 use PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema\CreateCommand;
 use PrecisionSoft\Doctrine\Audit\Command\DoctrineSchema\UpdateCommand;
+use PrecisionSoft\Doctrine\Audit\Contract\AuditPurgerInterface;
+use PrecisionSoft\Doctrine\Audit\Contract\AuditReaderInterface;
 use PrecisionSoft\Doctrine\Audit\EventSubscriber\DoctrineSchemaListener;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Service\AnnotationReadService;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration as DoctrineConfig;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Storage;
+use PrecisionSoft\Doctrine\Audit\Storage\FileAuditReader;
 use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -42,9 +47,33 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
 
         $this->defineStorages($containerBuilder, $processedConfig['storages']);
 
+        $this->defineReaderAliases($containerBuilder, $processedConfig['storages']);
+
         $this->defineAuditors($containerBuilder, $processedConfig['auditors']);
 
         $this->defineServices($containerBuilder, $processedConfig['auditors'], $processedConfig['storages']);
+    }
+
+    /**
+     * With more than one readable storage the alias would be arbitrary, so none is registered and the per-storage ids stay the only way in.
+     *
+     * @param array<string, mixed> $storages
+     */
+    protected function defineReaderAliases(ContainerBuilder $containerBuilder, array $storages): void
+    {
+        $readableStorageNames = \array_keys(\array_filter(
+            $storages,
+            static fn(array $storage) => Configuration::TYPE_FILE === $storage['type'],
+        ));
+
+        if (1 !== \count($readableStorageNames)) {
+            return;
+        }
+
+        $readerServiceId = $this->getStorageReaderId((string)$readableStorageNames[0]);
+
+        $containerBuilder->setAlias(AuditReaderInterface::class, $readerServiceId);
+        $containerBuilder->setAlias(AuditPurgerInterface::class, $readerServiceId);
     }
 
     /** @param array<string, mixed> $storages */
@@ -143,6 +172,11 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $storageServiceId = $this->getStorageId($storageName);
 
         $containerBuilder->setDefinition($storageServiceId, $definition);
+
+        $containerBuilder->setDefinition(
+            $this->getStorageReaderId($storageName),
+            new Definition(FileAuditReader::class, [$file]),
+        );
     }
 
     /** @param array<string, mixed> $storage */
@@ -239,9 +273,39 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
                         $auditor,
                         $storage,
                     ),
+                    Configuration::TYPE_FILE => $this->defineAuditCommands(
+                        $containerBuilder,
+                        $auditorName,
+                        $storageName,
+                    ),
                     default => null,
                 };
             }
+        }
+    }
+
+    protected function defineAuditCommands(
+        ContainerBuilder $containerBuilder,
+        string $auditorName,
+        string $storageName,
+    ): void {
+        $readerReference = new Reference($this->getStorageReaderId($storageName));
+
+        foreach ([ReadCommand::class => 'read', PurgeCommand::class => 'purge'] as $commandClass => $commandName) {
+            $definition = new Definition(
+                $commandClass,
+                [
+                    \sprintf('%s:%s:%s:%s', static::BASE_COMMAND_NAME, $commandName, $auditorName, $storageName),
+                    $readerReference,
+                ],
+            );
+
+            $definition->addTag('console.command');
+
+            $containerBuilder->setDefinition(
+                $this->getCommandId(\sprintf('%s.%s.%s', $commandName, $auditorName, $storageName)),
+                $definition,
+            );
         }
     }
 
@@ -316,6 +380,11 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
     protected function getStorageId(string $name): string
     {
         return \sprintf('%s.storage.%s', static::BASE_SERVICE_ID, $name);
+    }
+
+    protected function getStorageReaderId(string $name): string
+    {
+        return \sprintf('%s.storage.%s.reader', static::BASE_SERVICE_ID, $name);
     }
 
     protected function getStorageConfigId(string $name): string

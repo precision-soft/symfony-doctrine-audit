@@ -13,7 +13,7 @@ Any suggestions are welcomed.
 ## Requirements
 
 - PHP >= 8.2
-- Symfony 7.*
+- Symfony 7.* or 8.* -- a Symfony 8 set needs PHP >= 8.4, which is what `symfony/config` 8 requires; below that composer resolves 7.x
 - Doctrine ORM 3.*
 - Doctrine DBAL 4.*
 
@@ -40,17 +40,21 @@ The library hooks into Doctrine's `onFlush` and `postFlush` events to capture en
 3. **Storage** -- Captured changes are wrapped in a `StorageDto` and dispatched to one or more storage backends (Doctrine tables, JSONL files, or a custom service). Storages can be synchronous or asynchronous.
 4. **Transaction grouping** -- All changes within a single flush are grouped under one transaction record that includes the username (provided by a `TransactionProviderInterface` implementation) and a timestamp.
 
+Owning `ManyToMany` changes are grouped by association and contain `owner_class`, `owner_identifier`, `field`, `target_class`, and deterministically ordered `added` and `removed` identifier lists. Doctrine storage writes that list to the transaction table's `collection_changes` JSON column; JSONL storage writes the same list under `collections`. Only identifiers are read from the mapped objects, so capturing a change does not serialize object graphs or initialize unrelated associations, and the ordering is stable across runs, which makes two audit trails comparable.
+
 ## Limitations
 
 Auditing is driven by Doctrine ORM flush events, so a few categories of changes are intentionally **not** captured:
 
-- **To-many / inverse-side association changes** -- Modifications to `OneToMany`, `ManyToMany`, and inverse-side collections (adding/removing related entities) are surfaced by Doctrine as `PersistentCollection` change-set entries and are not recorded. Only owning-side to-one associations and scalar fields are audited. If you need to audit a relationship change, audit the owning side (e.g. the join entity of a many-to-many).
+- **Inverse-side association changes** -- Owning `ManyToMany` collections are audited with deterministic owner and target identifiers under the transaction's `collection_changes` payload. Inverse-side and `OneToMany` collections are not recorded independently because Doctrine persists their relationship through the owning side.
 - **Bulk DQL / DBAL operations** -- `UPDATE`/`DELETE` issued via DQL or raw DBAL bypass the Unit of Work and therefore dispatch no flush events, so they produce no audit rows. Mutate entities through the ORM (persist/remove + flush) when an audit trail is required.
-- **Concurrent writes to a file storage** -- `FileStorage` appends through a single `appendToFile()` call. Appends larger than the platform's `PIPE_BUF` are not guaranteed to be atomic, so two processes writing a large payload at the same moment can interleave a line. This is inherent to plain file appends; use a doctrine or custom storage where concurrency matters.
+- **File storage locking** -- `FileStorage` takes an exclusive advisory lock while writing each complete JSONL record and handles partial writes. The lock coordinates writers that use this storage on the same filesystem; network filesystems must provide working `flock()` semantics.
 
 A few further constraints are not limitations of the flush cycle but properties of how the audit schema is laid out:
 
 - **The audit database must not be the source database.** Audit tables carry the *same names* as the entity tables they mirror, so pointing a doctrine storage's `entity_manager` at the audited connection makes `schema:create` replace your application's tables. Always give the audit storage its own database.
+- **A collection's identifiers must be scalar.** Owner and target identifiers are recorded as scalars, with backed enums reduced to their value and dates to ATOM. An entity whose composite primary key contains an association therefore cannot take part in an audited collection - the flush is rejected with `identifier field ... is not scalar`. Audit the join entity of the association instead.
+- **Many-to-many join tables are not mirrored.** A join table has no transaction id column, so it is not an audit table and is dropped from the generated audit schema; the collection's history lives in the transaction's `collection_changes` payload instead.
 - **Every audited entity needs a primary key**, and its identifier fields cannot be listed in `ignored_fields` or marked `#[Ignore]` -- the audit table's primary key is the entity's key plus the transaction id.
 - **`transaction_id_column_type` must be an integer type** (`integer`, `bigint`, `smallint`). The transaction table's `id` is an autoincrement column read back through `lastInsertId()`; anything else is rejected when the container is built.
 
@@ -70,6 +74,7 @@ precision_soft_doctrine_audit:
                 transaction_id_column_name: 'audit_transaction_id'  # optional
                 transaction_id_column_type: 'integer'            # optional -- integer, bigint or smallint
                 operation_column_name: 'audit_operation'         # optional
+                collection_changes_column_name: 'collection_changes' # optional
 
         # File storage -- appends JSONL entries to a file
         <name>:
@@ -101,7 +106,9 @@ precision_soft_doctrine_audit:
 - The auditor reads entity metadata on first flush and caches it for subsequent flushes within the same request.
 - Each audited flush triggers one INSERT per transaction plus one INSERT per changed entity per storage. For high-throughput systems, consider using asynchronous storages (e.g., a RabbitMQ-backed custom storage) so that only the message publish happens synchronously.
 - The `ignored_fields` option (both global and per-entity via `#[Ignore]`) reduces the number of columns tracked and therefore the volume of audit data written.
-- File storage appends JSONL lines and does not open a database connection, making it the lightest option for development or low-volume environments.
+- File storage appends JSONL lines and does not open a database connection, making it the lightest option for development or low-volume environments. Each append takes an exclusive `flock()` for the duration of one record, so many concurrent writers serialize on it.
+- Owning `ManyToMany` collection changes cost one identifier read per added or removed target, plus one JSON column on the transaction row. Reading identifiers does not initialize the target entities, so the cost scales with the size of the change, not with the size of the collection.
+- Reading through `FileAuditReader` scans the file: a filter is applied per record and a cursor skips lines without decoding them, but there is no index. It suits operational lookups and retention, not reporting over a large history - use a doctrine storage and query the audit tables for that.
 
 ## Usage
 
@@ -251,7 +258,88 @@ This library registers two commands for **each pair of auditor and doctrine stor
 
 Running `schema:update` immediately after `schema:create` emits no statements, so the commands are safe to run from a deployment pipeline.
 
+### File storage: reading and retention
+
+Every `file` storage also registers a reader on the same path, so nothing has to be configured twice:
+
+* ``precision_soft_doctrine_audit.storage.<storage-name>.reader`` -- a `FileAuditReader`, which implements both
+  [`AuditReaderInterface`](./src/Contract/AuditReaderInterface.php) and
+  [`AuditPurgerInterface`](./src/Contract/AuditPurgerInterface.php).
+
+With **exactly one** `file` storage configured, both contracts are aliased onto that reader and autowire:
+
+```php
+use PrecisionSoft\Doctrine\Audit\Contract\AuditReaderInterface;
+use PrecisionSoft\Doctrine\Audit\Dto\Query\AuditQuery;
+use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+
+public function __construct(private readonly AuditReaderInterface $auditReader) {}
+
+$page = $this->auditReader->read(new AuditQuery(
+    entityClass: Order::class,
+    identity: ['id' => 42],
+    operation: Operation::Update,
+    limit: 50,
+));
+
+foreach ($page->getTransactions() as $transaction) { /* ... */ }
+
+$nextCursor = $page->getNextCursor();
+```
+
+A query reaches collection changes as well as entity rows, so the same call finds a flush that only added or removed a related entity:
+
+```php
+$page = $this->auditReader->read(new AuditQuery(entityClass: Tag::class, identity: ['id' => 9]));
+```
+
+With several file storages the alias would be ambiguous, so none is registered and the per-storage service id is the only way in.
+
+Retention goes through [`PurgeRequest`](./src/Dto/Query/PurgeRequest.php), which is **dry-run by default**:
+
+```php
+use PrecisionSoft\Doctrine\Audit\Contract\AuditPurgerInterface;
+use PrecisionSoft\Doctrine\Audit\Dto\Query\PurgeRequest;
+
+$result = $auditPurger->purge(new PurgeRequest(new DateTimeImmutable('-1 year'), 500, false));
+
+$result->getMatchedTransactions();
+$result->getPurgedTransactions();
+$result->hasMore();
+```
+
+A purge removes **whole transactions** only, never individual entity rows, and never more than `batchSize` per call.
+`hasMore()` reports whether records older than `before` remain **beyond** this batch, so looping until it is false drains the backlog in bounded steps.
+
+The same two operations are available from the console, one pair per auditor and file storage:
+
+* ``precision-soft:doctrine:audit:read:<auditor-name>:<storage-name>`` -- `--entity-class`, `--identity field=value`
+  (repeatable), `--from`, `--until`, `--username`, `--operation`, `--limit`, `--cursor`.
+* ``precision-soft:doctrine:audit:purge:<auditor-name>:<storage-name>`` -- `--before` (mandatory), `--batch-size`, and `--force` to purge instead of reporting.
+
+Three properties of this reader are worth knowing before you build on it:
+
+- **The contract is satisfied by the JSONL storage only, and its payload is `@experimental`.** `AuditPage::getTransactions()` returns the decoded JSONL records as they are on disk. There is no doctrine-backed reader yet, and the shape becomes a dedicated DTO once there is one -- the method signatures are stable, but what they carry is not covered by the backward compatibility promise until then.
+- **A cursor is a line offset**, opaque but not stable: a purge between two pages shifts the lines, so a cursor held across a purge resumes at the wrong place. Page through in one pass, or re-query from the start.
+- **A collection change matches on either side of the association.** `entityClass` matches its `owner_class` or its `target_class`, and `identity` matches the owner's identifier or one of the added or removed target identifiers. `operation` is entity-only -- a collection change carries none, so setting `operation` narrows the query to entity rows and excludes collection changes.
+
+Purge rewrites the audit file, so it is a maintenance operation: run it when audited flushes are not in flight. An interrupted purge leaves the records it meant to keep next to the audit file as `<file>.purge` and refuses to run again until that file is dealt with, rather than leaving a truncated audit trail.
+
 ## Upgrading
+
+### v3.x → v4.0
+
+**Run the audit schema update command.** The transaction table gains a nullable `collection_changes` JSON column:
+
+```bash
+bin/console precision-soft:doctrine:audit:schema:update:<auditor-name>:<storage-name> --force
+```
+
+**`Storage::getTransactionId()` takes the whole `StorageDto`.** The collection payload belongs on the transaction row, so subclasses overriding it must widen the parameter:
+
+```php
+protected function getTransactionId(StorageDto $storageDto): int
+```
 
 ### v2.x → v3.0
 

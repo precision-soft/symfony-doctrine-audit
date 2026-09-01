@@ -22,12 +22,12 @@
         "doctrine/persistence": "3.*",
         "precision-soft/doctrine-type": "^3.0",
         "precision-soft/symfony-console": "^4.0",
-        "symfony/config": "7.*",
-        "symfony/console": "7.*",
-        "symfony/dependency-injection": "7.*",
-        "symfony/filesystem": "7.*",
-        "symfony/http-kernel": "7.*",
-        "symfony/serializer": "7.*"
+        "symfony/config": "^7.0 || ^8.0",
+        "symfony/console": "^7.0 || ^8.0",
+        "symfony/dependency-injection": "^7.0 || ^8.0",
+        "symfony/filesystem": "^7.0 || ^8.0",
+        "symfony/http-kernel": "^7.0 || ^8.0",
+        "symfony/serializer": "^7.0 || ^8.0"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "3.*",

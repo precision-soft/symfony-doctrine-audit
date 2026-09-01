@@ -63,6 +63,11 @@ final class SchemaFunctionalTest extends TestCase
             $tableNames,
             'the target of an audited association is not itself audited',
         );
+        static::assertNotContains(
+            'audited_subject_related',
+            $tableNames,
+            'a many-to-many join table has no transaction id column, so it is not an audit table',
+        );
     }
 
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]

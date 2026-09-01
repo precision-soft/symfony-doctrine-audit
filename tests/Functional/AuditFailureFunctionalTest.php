@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Functional;
 use PHPUnit\Framework\Attributes\DataProviderExternal;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\AuditIntegrationEnvironment;
@@ -92,7 +93,6 @@ final class AuditFailureFunctionalTest extends TestCase
             $environment->sourceEntityManager->flush();
             static::fail('the failing sink must still surface to the caller');
         } catch (Exception) {
-            /* the failure is expected here; what matters is how it was reported */
         }
 
         static::assertSame([], $logger->getRecords('critical'), 'a surviving sink is not a dead letter');
@@ -105,7 +105,7 @@ final class AuditFailureFunctionalTest extends TestCase
         static::assertStringContainsString('survivor', $contents);
     }
 
-    /** @param \PrecisionSoft\Doctrine\Audit\Contract\StorageInterface[] $extraStorages */
+    /** @param StorageInterface[] $extraStorages */
     private function createEnvironment(
         string $environmentVariable,
         RecordingLogger $logger,

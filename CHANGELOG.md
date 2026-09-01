@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.0.0] - 2026-09-01 - Many-to-many collection auditing and jsonl read and retention contracts
+
+### Upgrading from v3
+
+- **Run the audit schema update command.** The transaction table gains a nullable `collection_changes` JSON column, and an audited flush that changes an owning `ManyToMany` collection writes to it.
+- **`Storage::getTransactionId()` now takes the whole `StorageDto`** instead of just its `TransactionDto`, because the collection payload belongs on the transaction row. Subclasses that override it must widen the parameter.
+- Consumers pinning `precision-soft/symfony-doctrine-audit: 3.*` move to `4.*`.
+
+### Added
+
+- Owning `ManyToMany` collection additions and removals are captured with deterministic owner and target identifiers. Doctrine storage keeps the payload in the transaction table's configurable `collection_changes` JSON column, while JSONL exposes the same data under `collections`.
+- `AuditReaderInterface` and `AuditPurgerInterface`, with `FileAuditReader` implementing both over JSONL. Both are marked `@experimental`: the method signatures are stable, but `AuditPage` hands back the jsonl records verbatim and that payload becomes a dedicated transaction dto once a second storage implements the contract. Queries support entity class and identity, transaction range, username, operation, a bounded limit and an opaque cursor; purge is dry-run by default, removes whole transactions only, and is bounded by a batch size.
+- Every `file` storage now registers its reader as `precision_soft_doctrine_audit.storage.<name>.reader`, reusing the path already validated for the storage. With exactly one file storage the two contracts are aliased onto it, so they autowire.
+- `precision-soft:doctrine:audit:read:<auditor>:<storage>` and `precision-soft:doctrine:audit:purge:<auditor>:<storage>` for every `file` storage. Purge reports what it would remove unless `--force` is passed.
+- Queries reach collection changes, not only entity rows: `entityClass` matches an association's `owner_class` or `target_class`, and `identity` matches the owner's identifier or one of the added or removed target identifiers. `operation` stays entity-only, since a collection change carries none.
+- `collection_changes_column_name` for the doctrine storage config.
+
+### Fixed
+
+- `FileStorage` now holds an exclusive file lock for each complete JSONL record and handles partial writes, preventing concurrent writers from interleaving large audit entries.
+- Audit schema generation no longer fails when an audited entity owns a `ManyToMany`. A table without the transaction id column is not an audit table, so it is dropped from the audit schema instead of being handed a foreign key it cannot carry - previously `postGenerateSchema()` threw `ColumnDoesNotExist` on the join table and took the whole schema down.
+- `FileAuditReader::purge()` reports `hasMore` for records beyond the current batch only. A dry run used to count the records it had just matched as leftovers, so a `do { … } while ($result->hasMore())` loop never terminated.
+- `FileAuditReader::purge()` streams the records it keeps instead of buffering the whole file, and copies them back into the original inode - so memory no longer scales with the audit file, the `flock()` contract with `FileStorage` still holds, and an interrupted purge leaves the complete set of kept records on disk as `<file>.purge` rather than a truncated audit file.
+
+### Changed
+
+- Symfony component constraints now accept 7.x as well as 8.x. A Symfony 8 set resolves from PHP 8.4 up, since that is `symfony/config` 8's own floor; below it composer keeps 7.x. The new `symfony-latest` CI lane resolves the top of the allowed range on PHP 8.5 and runs phpstan and the suite against it, while `composer.lock` stays on the reproducible baseline set. CI also covers PHP 8.5 against the locked toolchain.
+- Reading a page no longer decodes the records it skips, so paging deeper into a jsonl file stays cheap.
+- The locked, partial-write-safe file io shared by `FileStorage` and `FileAuditReader` moved into `Storage\Trait\FileLockTrait`, whose `openFile`/`lockFile`/`writeFile`/`flushFile` seams are overridable.
+- `StorageDto::getCollectionChangesAsArray()` returns the persisted shape of the collection payload, so the doctrine and jsonl storages serialize it through one place instead of two copies of the same mapping.
+
 ## [v3.5.0] - 2026-08-17 - The audit schema can be generated again, and #[Auditable] is inherited
 
 ### Fixed
@@ -399,7 +430,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Initial public release of `precision-soft/symfony-doctrine-audit`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.5.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v4.0.0...HEAD
+
+[v4.0.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.5.0...v4.0.0
 
 [v3.5.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.4.4...v3.5.0
 

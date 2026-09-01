@@ -11,10 +11,13 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Storage;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+use PrecisionSoft\Doctrine\Audit\Dto\Storage\CollectionChangeDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
+use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Storage\FailingFileStorage;
 
 /**
  * @internal
@@ -30,7 +33,13 @@ final class FileStorageTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (\file_exists($this->tmpFile)) {
+        if (true === \is_dir($this->tmpFile)) {
+            \rmdir($this->tmpFile);
+
+            return;
+        }
+
+        if (true === \file_exists($this->tmpFile)) {
             \unlink($this->tmpFile);
         }
     }
@@ -109,6 +118,94 @@ final class FileStorageTest extends TestCase
 
         static::assertArrayHasKey('extras', $decoded);
         static::assertSame('127.0.0.1', $decoded['extras']['ip']);
+    }
+
+    public function testSaveWritesCollectionChangesWithoutEntityRows(): void
+    {
+        $storage = new FileStorage($this->tmpFile, null);
+        $collectionChange = new CollectionChangeDto(
+            'App\\Entity\\User',
+            ['id' => 10],
+            'roles',
+            'App\\Entity\\Role',
+            [['id' => 2]],
+            [['id' => 1]],
+        );
+        $storageDto = new StorageDto(new TransactionDto('admin'), [], [$collectionChange]);
+
+        $storage->save($storageDto);
+
+        $decoded = \json_decode($this->readStorageFile(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertSame([], $decoded['entities']);
+        static::assertSame('App\\Entity\\User', $decoded['collections'][0]['owner_class']);
+        static::assertSame(['id' => 10], $decoded['collections'][0]['owner_identifier']);
+        static::assertSame('roles', $decoded['collections'][0]['field']);
+        static::assertSame('App\\Entity\\Role', $decoded['collections'][0]['target_class']);
+        static::assertSame([['id' => 2]], $decoded['collections'][0]['added']);
+        static::assertSame([['id' => 1]], $decoded['collections'][0]['removed']);
+    }
+
+    public function testSaveSurfacesAnUnopenableFile(): void
+    {
+        \mkdir($this->tmpFile);
+
+        $storage = new FileStorage($this->tmpFile, null);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('could not open audit file');
+
+        $storage->save($this->createStorageDto());
+    }
+
+    public function testSaveSurfacesAFileItCannotLock(): void
+    {
+        $storage = new FailingFileStorage($this->tmpFile, null, lock: false);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('could not lock audit file');
+
+        $storage->save($this->createStorageDto());
+    }
+
+    public function testSaveSurfacesAFailedWrite(): void
+    {
+        $storage = new FailingFileStorage($this->tmpFile, null, write: false);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('could not write audit file');
+
+        $storage->save($this->createStorageDto());
+    }
+
+    public function testSaveSurfacesAFailedFlush(): void
+    {
+        $storage = new FailingFileStorage($this->tmpFile, null, flush: false);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('could not flush audit file');
+
+        $storage->save($this->createStorageDto());
+    }
+
+    public function testSaveWritesAPayloadLargerThanASingleWrite(): void
+    {
+        $storage = new FailingFileStorage($this->tmpFile, null, partialWriteSize: 8);
+
+        $storage->save($this->createStorageDto());
+
+        $decoded = \json_decode($this->readStorageFile(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertSame('admin', $decoded['username']);
+        static::assertSame('insert', $decoded['entities'][0]['operation']);
+    }
+
+    private function createStorageDto(): StorageDto
+    {
+        return new StorageDto(
+            new TransactionDto('admin'),
+            [new EntityDto(Operation::Insert, 'App\\Entity\\User', 'user', [new FieldDto('id', 'id', 'integer', 1)])],
+        );
     }
 
     public function testSaveAppendsMultipleLines(): void

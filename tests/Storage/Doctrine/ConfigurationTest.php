@@ -26,6 +26,7 @@ final class ConfigurationTest extends TestCase
         static::assertSame('audit_transaction_id', $config->getTransactionIdColumnName());
         static::assertSame('integer', $config->getTransactionIdColumnType());
         static::assertSame('audit_operation', $config->getOperationColumnName());
+        static::assertSame('collection_changes', $config->getCollectionChangesColumnName());
     }
 
     public function testCustomValues(): void
@@ -35,12 +36,14 @@ final class ConfigurationTest extends TestCase
             'transaction_id_column_name' => 'custom_id',
             'transaction_id_column_type' => 'bigint',
             'operation_column_name' => 'custom_op',
+            'collection_changes_column_name' => 'custom_collections',
         ]);
 
         static::assertSame('custom_transaction', $config->getTransactionTableName());
         static::assertSame('custom_id', $config->getTransactionIdColumnName());
         static::assertSame('bigint', $config->getTransactionIdColumnType());
         static::assertSame('custom_op', $config->getOperationColumnName());
+        static::assertSame('custom_collections', $config->getCollectionChangesColumnName());
     }
 
     public function testPartialOverride(): void
@@ -53,6 +56,7 @@ final class ConfigurationTest extends TestCase
         static::assertSame('audit_transaction_id', $config->getTransactionIdColumnName());
         static::assertSame('integer', $config->getTransactionIdColumnType());
         static::assertSame('audit_operation', $config->getOperationColumnName());
+        static::assertSame('collection_changes', $config->getCollectionChangesColumnName());
     }
 
     public function testANonIntegerTransactionIdColumnTypeIsRejected(): void

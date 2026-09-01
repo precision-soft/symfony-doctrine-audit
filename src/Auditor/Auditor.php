@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Auditor;
 
+use BackedEnum;
+use DateTimeInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
@@ -19,9 +21,11 @@ use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\TransactionProviderInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Annotation\EntityDto as AnnotationEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Auditor\AuditorDto;
+use PrecisionSoft\Doctrine\Audit\Dto\Auditor\CollectionChangeDto as AuditorCollectionChangeDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Auditor\EntityDto as AuditorEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+use PrecisionSoft\Doctrine\Audit\Dto\Storage\CollectionChangeDto as StorageCollectionChangeDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto as StorageEntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
@@ -70,7 +74,12 @@ class Auditor
 
             $entitiesToUpdate = $this->filterAuditedEntities($unitOfWork->getScheduledEntityUpdates());
 
-            if ([] === $entitiesToDelete && [] === $entitiesToInsert && [] === $entitiesToUpdate) {
+            $collectionChanges = $this->createCollectionChanges(
+                $unitOfWork->getScheduledCollectionUpdates(),
+                $unitOfWork->getScheduledCollectionDeletions(),
+            );
+
+            if ([] === $entitiesToDelete && [] === $entitiesToInsert && [] === $entitiesToUpdate && [] === $collectionChanges) {
                 return;
             }
 
@@ -79,7 +88,13 @@ class Auditor
                 $changeSets[\spl_object_hash($entity)] = $unitOfWork->getEntityChangeSet($entity);
             }
 
-            $this->auditorDto = new AuditorDto($entitiesToDelete, $entitiesToInsert, $entitiesToUpdate, $changeSets);
+            $this->auditorDto = new AuditorDto(
+                $entitiesToDelete,
+                $entitiesToInsert,
+                $entitiesToUpdate,
+                $changeSets,
+                $collectionChanges,
+            );
 
             $this->createAuditEntities($entitiesToDelete, Operation::Delete);
         } catch (Throwable $throwable) {
@@ -405,6 +420,129 @@ class Auditor
         return $originalEntityData;
     }
 
+    /**
+     * @param PersistentCollection<int, object>[] $collectionUpdates
+     * @param PersistentCollection<int, object>[] $collectionDeletions
+     * @return AuditorCollectionChangeDto[]
+     */
+    protected function createCollectionChanges(array $collectionUpdates, array $collectionDeletions): array
+    {
+        $collections = [];
+
+        foreach ($collectionUpdates as $collection) {
+            $collections[\spl_object_hash($collection)] = [$collection, false];
+        }
+
+        foreach ($collectionDeletions as $collection) {
+            $collections[\spl_object_hash($collection)] = [$collection, true];
+        }
+
+        $collectionChanges = [];
+
+        foreach ($collections as [$collection, $completeDeletion]) {
+            $mapping = $collection->getMapping();
+            $owner = $collection->getOwner();
+
+            if (false === $mapping->isOwningSide()
+                || null === $owner
+                || false === $this->hasAuditedEntity($this->annotationReadService->getEntityClass($owner))
+            ) {
+                continue;
+            }
+
+            $addedEntities = true === $completeDeletion ? [] : $this->filterObjects($collection->getInsertDiff());
+            $removedEntities = true === $completeDeletion
+                ? $this->filterObjects($collection->getSnapshot())
+                : $this->filterObjects($collection->getDeleteDiff());
+
+            if ([] === $addedEntities && [] === $removedEntities) {
+                continue;
+            }
+
+            $collectionChanges[] = new AuditorCollectionChangeDto(
+                $owner,
+                $mapping->fieldName,
+                $mapping->targetEntity,
+                $addedEntities,
+                $removedEntities,
+            );
+        }
+
+        return $collectionChanges;
+    }
+
+    /**
+     * @param mixed[] $values
+     * @return object[]
+     */
+    protected function filterObjects(array $values): array
+    {
+        return \array_values(\array_filter($values, static fn(mixed $value): bool => true === \is_object($value)));
+    }
+
+    /** @return array<string, mixed> */
+    protected function getStableIdentifier(object $entity): array
+    {
+        $classMetadata = $this->entityManager->getClassMetadata(
+            $this->annotationReadService->getEntityClass($entity),
+        );
+        $identifier = $classMetadata->getIdentifierValues($entity);
+
+        if ([] === $identifier) {
+            throw new Exception(\sprintf('entity `%s` has no stable identifier', $classMetadata->getName()));
+        }
+
+        foreach ($identifier as $field => $value) {
+            if (true === $value instanceof BackedEnum) {
+                $identifier[$field] = $value->value;
+            } elseif (true === $value instanceof DateTimeInterface) {
+                $identifier[$field] = $value->format(DateTimeInterface::ATOM);
+            } elseif (null !== $value && false === \is_scalar($value)) {
+                throw new Exception(
+                    \sprintf(
+                        'identifier field `%s::%s` is not scalar, so it cannot be recorded as a stable collection identifier; audit the join entity of the association instead',
+                        $classMetadata->getName(),
+                        $field,
+                    ),
+                );
+            }
+        }
+
+        \ksort($identifier);
+
+        return $identifier;
+    }
+
+    /**
+     * @param object[] $entities
+     * @return list<array<string, mixed>>
+     */
+    protected function getStableIdentifiers(array $entities): array
+    {
+        $sorted = [];
+
+        foreach ($entities as $entity) {
+            $identifier = $this->getStableIdentifier($entity);
+            $sorted[] = [\json_encode($identifier, \JSON_THROW_ON_ERROR), $identifier];
+        }
+
+        return $this->sortByKey($sorted);
+    }
+
+    /**
+     * Sorts `[sortKey, value]` pairs and hands back the values. The key is computed once per element rather than on
+     * every comparison, which is what a comparator encoding its operands would do.
+     *
+     * @param list<array{0: string, 1: mixed}> $keyedValues
+     * @return list<mixed>
+     */
+    protected function sortByKey(array $keyedValues): array
+    {
+        \usort($keyedValues, static fn(array $left, array $right) => $left[0] <=> $right[0]);
+
+        return \array_column($keyedValues, 1);
+    }
+
     protected function createStorageDto(): StorageDto
     {
         if (null === $this->auditorDto) {
@@ -453,7 +591,34 @@ class Auditor
             );
         }
 
-        return new StorageDto($transaction, $entities);
+        $sorted = [];
+
+        foreach ($this->auditorDto->getCollectionChanges() as $collectionChange) {
+            $owner = $collectionChange->getOwner();
+
+            $storageCollectionChange = new StorageCollectionChangeDto(
+                $this->annotationReadService->getEntityClass($owner),
+                $this->getStableIdentifier($owner),
+                $collectionChange->getField(),
+                $collectionChange->getTargetClass(),
+                $this->getStableIdentifiers($collectionChange->getAddedEntities()),
+                $this->getStableIdentifiers($collectionChange->getRemovedEntities()),
+            );
+
+            $sorted[] = [$this->getCollectionChangeSortKey($storageCollectionChange), $storageCollectionChange];
+        }
+
+        return new StorageDto($transaction, $entities, $this->sortByKey($sorted));
+    }
+
+    protected function getCollectionChangeSortKey(StorageCollectionChangeDto $collectionChange): string
+    {
+        return \json_encode([
+            $collectionChange->getOwnerClass(),
+            $collectionChange->getOwnerIdentifier(),
+            $collectionChange->getField(),
+            $collectionChange->getTargetClass(),
+        ], \JSON_THROW_ON_ERROR);
     }
 
     /**

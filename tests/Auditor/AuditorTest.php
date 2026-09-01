@@ -71,6 +71,9 @@ final class AuditorTest extends AbstractTestCase
         $this->entityManager->shouldReceive('getUnitOfWork')
             ->andReturn($this->unitOfWork);
 
+        $this->unitOfWork->shouldReceive('getScheduledCollectionUpdates')->byDefault()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledCollectionDeletions')->byDefault()->andReturn([]);
+
         $this->annotationReadService->shouldReceive('getEntityClass')
             ->andReturnUsing(static fn(object $entityOrProxy): string => $entityOrProxy::class);
     }

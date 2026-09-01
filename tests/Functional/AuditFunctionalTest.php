@@ -117,6 +117,64 @@ final class AuditFunctionalTest extends TestCase
     }
 
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testOwningCollectionChangesUseDeterministicIdentifiers(string $environmentVariable): void
+    {
+        $environment = $this->createEnvironment($environmentVariable);
+
+        $firstRelated = (new RelatedSubject())->setLabel('first');
+        $secondRelated = (new RelatedSubject())->setLabel('second');
+        $environment->sourceEntityManager->persist($firstRelated);
+        $environment->sourceEntityManager->persist($secondRelated);
+        $environment->sourceEntityManager->flush();
+
+        $subject = (new AuditedSubject())
+            ->setName('collections')
+            ->setSecret('s')
+            ->setModified('m');
+        $environment->sourceEntityManager->persist($subject);
+        $environment->sourceEntityManager->flush();
+
+        $subject->getRelatedSubjects()->add($secondRelated);
+        $subject->getRelatedSubjects()->add($firstRelated);
+        $environment->sourceEntityManager->flush();
+
+        $subject->getRelatedSubjects()->removeElement($firstRelated);
+        $environment->sourceEntityManager->flush();
+
+        $transactions = $environment->readTransactions();
+        static::assertCount(3, $transactions);
+        static::assertNull($transactions[0]['collection_changes']);
+
+        $additionChanges = \json_decode(
+            $transactions[1]['collection_changes'],
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        static::assertSame(AuditedSubject::class, $additionChanges[0]['owner_class']);
+        static::assertSame(['id' => $subject->getId()], $additionChanges[0]['owner_identifier']);
+        static::assertSame('relatedSubjects', $additionChanges[0]['field']);
+        static::assertSame(RelatedSubject::class, $additionChanges[0]['target_class']);
+        static::assertSame(
+            [
+                ['id' => $firstRelated->getId()],
+                ['id' => $secondRelated->getId()],
+            ],
+            $additionChanges[0]['added'],
+        );
+        static::assertSame([], $additionChanges[0]['removed']);
+
+        $removalChanges = \json_decode(
+            $transactions[2]['collection_changes'],
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        static::assertSame([], $removalChanges[0]['added']);
+        static::assertSame([['id' => $firstRelated->getId()]], $removalChanges[0]['removed']);
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testAnUnauditedEntityProducesNothing(string $environmentVariable): void
     {
         $environment = $this->createEnvironment($environmentVariable);

@@ -207,6 +207,8 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
             ->andReturn($usernameColumn);
         $extrasColumn = Mockery::mock(Column::class);
         $extrasColumn->shouldReceive('setNotnull')->with(false)->once()->andReturnSelf();
+        $collectionChangesColumn = Mockery::mock(Column::class);
+        $collectionChangesColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
 
         $transactionTable->shouldReceive('addColumn')
             ->with('created', Types::DATETIME_IMMUTABLE)
@@ -216,6 +218,9 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
             ->with('extras', Types::TEXT)
             ->once()
             ->andReturn($extrasColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('collection_changes', Types::JSON)
+            ->andReturn($collectionChangesColumn);
         $transactionTable->shouldReceive('setPrimaryKey')
             ->once()
             ->with(['id']);
@@ -255,6 +260,8 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
             ->andReturn($usernameColumn);
         $extrasColumn = Mockery::mock(Column::class);
         $extrasColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
+        $collectionChangesColumn = Mockery::mock(Column::class);
+        $collectionChangesColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
 
         $transactionTable->shouldReceive('addColumn')
             ->with('created', Types::DATETIME_IMMUTABLE)
@@ -262,11 +269,15 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
         $transactionTable->shouldReceive('addColumn')
             ->with('extras', Types::TEXT)
             ->andReturn($extrasColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('collection_changes', Types::JSON)
+            ->andReturn($collectionChangesColumn);
         $transactionTable->shouldReceive('setPrimaryKey')
             ->with(['id']);
 
         $otherTable = Mockery::mock(Table::class);
         $otherTable->shouldReceive('getName')->andReturn('some_audit_table');
+        $otherTable->shouldReceive('hasColumn')->with('audit_transaction_id')->andReturn(true);
         $otherTable->shouldReceive('addForeignKeyConstraint')
             ->once()
             ->with(
@@ -282,6 +293,58 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
             ->andReturn($transactionTable);
         $schema->shouldReceive('getTables')
             ->andReturn([$otherTable]);
+
+        $eventArgs = Mockery::mock(GenerateSchemaEventArgs::class);
+        $eventArgs->shouldReceive('getSchema')->andReturn($schema);
+
+        $listener->postGenerateSchema($eventArgs);
+    }
+
+    public function testPostGenerateSchemaDropsATableWithoutTheTransactionIdColumn(): void
+    {
+        $listener = $this->createListener();
+
+        $idColumn = Mockery::mock(Column::class);
+        $usernameColumn = Mockery::mock(Column::class);
+        $usernameColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
+        $createdColumn = Mockery::mock(Column::class);
+        $extrasColumn = Mockery::mock(Column::class);
+        $extrasColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
+        $collectionChangesColumn = Mockery::mock(Column::class);
+        $collectionChangesColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
+
+        $transactionTable = Mockery::mock(Table::class);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('id', 'integer', ['autoincrement' => true, 'notnull' => true])
+            ->andReturn($idColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('username', Types::STRING, ['length' => 500])
+            ->andReturn($usernameColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('created', Types::DATETIME_IMMUTABLE)
+            ->andReturn($createdColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('extras', Types::TEXT)
+            ->andReturn($extrasColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('collection_changes', Types::JSON)
+            ->andReturn($collectionChangesColumn);
+        $transactionTable->shouldReceive('setPrimaryKey')->with(['id']);
+
+        $joinTable = Mockery::mock(Table::class);
+        $joinTable->shouldReceive('getName')->andReturn('audited_subject_related');
+        $joinTable->shouldReceive('hasColumn')->with('audit_transaction_id')->andReturn(false);
+        $joinTable->shouldNotReceive('addForeignKeyConstraint');
+
+        $schema = Mockery::mock(Schema::class);
+        $schema->shouldReceive('createTable')
+            ->with('audit_transaction')
+            ->andReturn($transactionTable);
+        $schema->shouldReceive('getTables')
+            ->andReturn([$joinTable]);
+        $schema->shouldReceive('dropTable')
+            ->once()
+            ->with('audited_subject_related');
 
         $eventArgs = Mockery::mock(GenerateSchemaEventArgs::class);
         $eventArgs->shouldReceive('getSchema')->andReturn($schema);
@@ -307,6 +370,8 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
             ->andReturn($usernameColumn);
         $extrasColumn = Mockery::mock(Column::class);
         $extrasColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
+        $collectionChangesColumn = Mockery::mock(Column::class);
+        $collectionChangesColumn->shouldReceive('setNotnull')->with(false)->andReturnSelf();
 
         $transactionTable->shouldReceive('addColumn')
             ->with('created', Types::DATETIME_IMMUTABLE)
@@ -314,6 +379,9 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
         $transactionTable->shouldReceive('addColumn')
             ->with('extras', Types::TEXT)
             ->andReturn($extrasColumn);
+        $transactionTable->shouldReceive('addColumn')
+            ->with('collection_changes', Types::JSON)
+            ->andReturn($collectionChangesColumn);
         $transactionTable->shouldReceive('setPrimaryKey')
             ->with(['id']);
 

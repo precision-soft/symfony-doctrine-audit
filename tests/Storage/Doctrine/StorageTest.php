@@ -15,6 +15,7 @@ use Mockery;
 use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+use PrecisionSoft\Doctrine\Audit\Dto\Storage\CollectionChangeDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
@@ -66,7 +67,7 @@ final class StorageTest extends AbstractTestCase
         );
     }
 
-    public function testSaveReturnsEarlyWhenNoEntities(): void
+    public function testSaveReturnsEarlyWhenNoEntitiesOrCollectionChanges(): void
     {
         $storage = $this->createStorage();
 
@@ -75,6 +76,42 @@ final class StorageTest extends AbstractTestCase
 
         $this->connection->shouldNotReceive('beginTransaction');
         $this->connection->shouldNotReceive('insert');
+
+        $storage->save($storageDto);
+    }
+
+    public function testSaveInsertsCollectionChangesWithoutEntityRows(): void
+    {
+        $storage = $this->createStorage();
+        $collectionChange = new CollectionChangeDto(
+            'App\\Entity\\User',
+            ['id' => 10],
+            'roles',
+            'App\\Entity\\Role',
+            [['id' => 2]],
+            [['id' => 1]],
+        );
+        $storageDto = new StorageDto(new TransactionDto('admin'), [], [$collectionChange]);
+
+        $this->connection->shouldReceive('insert')
+            ->once()
+            ->with(
+                'audit_transaction',
+                Mockery::on(function (array $data): bool {
+                    static::assertSame(['id' => 10], $data['collection_changes'][0]['owner_identifier']);
+                    static::assertSame([['id' => 2]], $data['collection_changes'][0]['added']);
+                    static::assertSame([['id' => 1]], $data['collection_changes'][0]['removed']);
+
+                    return true;
+                }),
+                Mockery::on(function (array $types): bool {
+                    static::assertSame('json', $types['collection_changes']);
+
+                    return true;
+                }),
+            );
+        $this->connection->shouldReceive('lastInsertId')->once()->andReturn('1');
+        $this->connection->shouldNotReceive('executeStatement');
 
         $storage->save($storageDto);
     }

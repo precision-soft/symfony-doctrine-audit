@@ -14,7 +14,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use PrecisionSoft\Doctrine\Audit\Contract\StorageInterface;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
-use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
@@ -32,7 +31,7 @@ class Storage implements StorageInterface
 
     public function save(StorageDto $storageDto): void
     {
-        if ([] === $storageDto->getEntities()) {
+        if ([] === $storageDto->getEntities() && [] === $storageDto->getCollectionChanges()) {
             return;
         }
 
@@ -40,7 +39,7 @@ class Storage implements StorageInterface
         $connection->beginTransaction();
 
         try {
-            $transactionId = $this->getTransactionId($storageDto->getTransaction());
+            $transactionId = $this->getTransactionId($storageDto);
 
             foreach ($storageDto->getEntities() as $entity) {
                 $this->saveEntity($transactionId, $entity);
@@ -67,9 +66,10 @@ class Storage implements StorageInterface
         return $this->logger;
     }
 
-    protected function getTransactionId(TransactionDto $transactionDto): int
+    protected function getTransactionId(StorageDto $storageDto): int
     {
         $connection = $this->entityManager->getConnection();
+        $transactionDto = $storageDto->getTransaction();
 
         $data = [
             'username' => $transactionDto->getUsername(),
@@ -83,6 +83,11 @@ class Storage implements StorageInterface
         if ([] !== $transactionDto->getExtras()) {
             $data['extras'] = \json_encode($transactionDto->getExtras(), \JSON_THROW_ON_ERROR);
             $types['extras'] = Types::TEXT;
+        }
+
+        if ([] !== $storageDto->getCollectionChanges()) {
+            $data[$this->configuration->getCollectionChangesColumnName()] = $storageDto->getCollectionChangesAsArray();
+            $types[$this->configuration->getCollectionChangesColumnName()] = Types::JSON;
         }
 
         $connection->insert(

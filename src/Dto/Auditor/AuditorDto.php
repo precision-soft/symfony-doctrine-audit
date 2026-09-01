@@ -20,12 +20,14 @@ class AuditorDto
      * @param object[] $entitiesToInsert
      * @param object[] $entitiesToUpdate
      * @param array<string, array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>> $entityChangeSets
+     * @param CollectionChangeDto[] $collectionChanges
      */
     public function __construct(
         protected readonly array $entitiesToDelete,
         protected readonly array $entitiesToInsert,
         protected readonly array $entitiesToUpdate,
         protected readonly array $entityChangeSets = [],
+        protected readonly array $collectionChanges = [],
     ) {
         $this->auditEntities = [];
     }
@@ -59,6 +61,12 @@ class AuditorDto
         $this->auditEntities[] = $entityDto;
 
         return $this;
+    }
+
+    /** @return CollectionChangeDto[] */
+    public function getCollectionChanges(): array
+    {
+        return $this->collectionChanges;
     }
 
     /** @return array<string, array{0: mixed, 1: mixed}|PersistentCollection<int, object>>|null */

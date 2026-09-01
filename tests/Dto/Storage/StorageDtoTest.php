@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Dto\Storage;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+use PrecisionSoft\Doctrine\Audit\Dto\Storage\CollectionChangeDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
@@ -57,5 +58,20 @@ final class StorageDtoTest extends TestCase
         static::assertCount(2, $storageDto->getEntities());
         static::assertSame($userEntity, $storageDto->getEntities()[0]);
         static::assertSame($postEntity, $storageDto->getEntities()[1]);
+    }
+
+    public function testGetCollectionChanges(): void
+    {
+        $collectionChange = new CollectionChangeDto(
+            'App\\Entity\\User',
+            ['id' => 1],
+            'roles',
+            'App\\Entity\\Role',
+            [['id' => 2]],
+            [],
+        );
+        $storageDto = new StorageDto(new TransactionDto('admin'), [], [$collectionChange]);
+
+        static::assertSame([$collectionChange], $storageDto->getCollectionChanges());
     }
 }

@@ -17,6 +17,7 @@ class Configuration
     protected const DEFAULT_TRANSACTION_ID_COLUMN = 'audit_transaction_id';
     protected const DEFAULT_TRANSACTION_ID_TYPE = Types::INTEGER;
     protected const DEFAULT_OPERATION_COLUMN = 'audit_operation';
+    protected const DEFAULT_COLLECTION_CHANGES_COLUMN = 'collection_changes';
 
     /**
      * Only an integer identity type can work: the id is autoincrement and `Storage::getTransactionId()` reads it back through `lastInsertId()`, while `guid` yields a `char(36)` whose autoincrement is quietly dropped, so `CREATE TABLE` succeeds and every audited flush fails afterwards.
@@ -29,6 +30,7 @@ class Configuration
     protected readonly string $transactionIdColumnName;
     protected readonly string $transactionIdColumnType;
     protected readonly string $operationColumnName;
+    protected readonly string $collectionChangesColumnName;
 
     /** @param array<string, string> $config */
     public function __construct(array $config)
@@ -49,6 +51,7 @@ class Configuration
 
         $this->transactionIdColumnType = $transactionIdColumnType;
         $this->operationColumnName = $config['operation_column_name'] ?? static::DEFAULT_OPERATION_COLUMN;
+        $this->collectionChangesColumnName = $config['collection_changes_column_name'] ?? static::DEFAULT_COLLECTION_CHANGES_COLUMN;
     }
 
     public function getTransactionTableName(): string
@@ -69,5 +72,10 @@ class Configuration
     public function getOperationColumnName(): string
     {
         return $this->operationColumnName;
+    }
+
+    public function getCollectionChangesColumnName(): string
+    {
+        return $this->collectionChangesColumnName;
     }
 }

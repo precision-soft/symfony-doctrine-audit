@@ -11,9 +11,13 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Functional;
 use PHPUnit\Framework\Attributes\DataProviderExternal;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+use PrecisionSoft\Doctrine\Audit\Dto\Query\AuditQuery;
+use PrecisionSoft\Doctrine\Audit\Storage\FileAuditReader;
 use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\AuditIntegrationEnvironment;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\AuditedSubject;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\RelatedSubject;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\IntegrationDatabase;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\SkipIntegrationException;
 
@@ -66,12 +70,21 @@ final class StorageParityFunctionalTest extends TestCase
             extraStorages: [new FileStorage($this->auditFile, null)],
         );
 
+        $related = (new RelatedSubject())->setLabel('parity');
+        $environment->sourceEntityManager->persist($related);
+        $environment->sourceEntityManager->flush();
+
         $subject = (new AuditedSubject())->setName('parity')->setSecret('s')->setModified('m');
         $environment->sourceEntityManager->persist($subject);
         $environment->sourceEntityManager->flush();
 
+        $subject->getRelatedSubjects()->add($related);
+        $environment->sourceEntityManager->flush();
+
         $subject->setName('parity-updated');
         $environment->sourceEntityManager->flush();
+
+        $subjectId = $subject->getId();
 
         $environment->sourceEntityManager->remove($subject);
         $environment->sourceEntityManager->flush();
@@ -79,25 +92,33 @@ final class StorageParityFunctionalTest extends TestCase
         $doctrineRows = $environment->readAuditRows('audited_subject');
         $fileLines = $this->readJsonLines();
 
-        static::assertCount(3, $doctrineRows);
-        static::assertCount(3, $fileLines);
+        static::assertCount(4, $doctrineRows);
+        static::assertCount(4, $fileLines);
 
         static::assertSame(
-            ['insert', 'update', 'delete'],
+            ['insert', 'update', 'update', 'delete'],
             \array_column($doctrineRows, 'audit_operation'),
         );
         static::assertSame(
-            ['insert', 'update', 'delete'],
+            ['insert', 'update', 'update', 'delete'],
             \array_map(static fn(array $line) => $line['entities'][0]['operation'], $fileLines),
         );
 
         static::assertSame('parity', $doctrineRows[0]['name']);
         static::assertSame('parity', $fileLines[0]['entities'][0]['columns']['name']);
 
-        static::assertSame('parity-updated', $doctrineRows[1]['name']);
+        $doctrineCollectionChanges = \json_decode(
+            $environment->readTransactions()[1]['collection_changes'],
+            true,
+            512,
+            \JSON_THROW_ON_ERROR,
+        );
+        static::assertEquals($doctrineCollectionChanges, $fileLines[1]['collections']);
+
+        static::assertSame('parity-updated', $doctrineRows[2]['name']);
         static::assertSame(
             ['old' => 'parity', 'new' => 'parity-updated'],
-            $fileLines[1]['entities'][0]['columns']['name'],
+            $fileLines[2]['entities'][0]['columns']['name'],
         );
 
         foreach ($fileLines as $fileLine) {
@@ -108,6 +129,30 @@ final class StorageParityFunctionalTest extends TestCase
         foreach ($fileLines as $fileLine) {
             static::assertSame('integration', $fileLine['username']);
         }
+
+        /* the reader has to match the shape the storage really writes, not the one the unit fixtures assume */
+        $reader = new FileAuditReader((string)$this->auditFile);
+
+        static::assertCount(
+            1,
+            $reader->read(new AuditQuery(
+                entityClass: RelatedSubject::class,
+                identity: ['id' => $related->getId()],
+            ))->getTransactions(),
+            'the added target of the collection is reachable through its own class and id',
+        );
+        static::assertCount(
+            4,
+            $reader->read(new AuditQuery(entityClass: AuditedSubject::class))->getTransactions(),
+        );
+        static::assertCount(
+            1,
+            $reader->read(new AuditQuery(
+                entityClass: AuditedSubject::class,
+                identity: ['id' => $subjectId],
+                operation: Operation::Delete,
+            ))->getTransactions(),
+        );
     }
 
     /** @return array<int, array<string, mixed>> */
