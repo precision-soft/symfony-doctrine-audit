@@ -8,9 +8,9 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Test\Exception;
 
+use Exception as BaseException;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Contract\ExceptionInterface;
-use Exception as BaseException;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Exception\StorageFailureException;
 

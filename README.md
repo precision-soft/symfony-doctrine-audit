@@ -321,17 +321,13 @@ The same two operations are available from the console, one pair per auditor and
   (repeatable), `--from`, `--until`, `--username`, `--operation`, `--limit`, `--cursor`.
 * ``precision-soft:doctrine:audit:purge:<auditor-name>:<storage-name>`` -- `--before` (mandatory), `--batch-size`, and `--force` to purge instead of reporting.
 
-The console only ever hands over strings while a JSONL record keeps the column's JSON type, and the two are compared
-strictly, so `--identity` casts what looks like a number or a keyword: `id=42` is the integer `42`, `paid=true` the
-boolean, `note=null` the null. **Wrap the value in double quotes to keep it a string**, which is what a code, a
-reference or a zero-padded number needs:
+The console only ever hands over strings while a JSONL record keeps the column's JSON type, and the two are compared strictly, so `--identity` casts what looks like a number or a keyword: `id=42` is the integer `42`, `paid=true` the boolean, `note=null` the null. **Wrap the value in double quotes to keep it a string**, which is what a code, a reference or a zero-padded number needs:
 
 ```shell
 bin/console precision-soft:doctrine:audit:read:catalogue:jsonl --identity='code="007"'
 ```
 
-Without the quotes `code=007` is the integer `7` and matches nothing, silently. A future `--before` is accepted on
-purpose -- it is the only way to empty a trail -- and the dry run the command defaults to reports the count first.
+Without the quotes `code=007` is the integer `7` and matches nothing, silently. A future `--before` is accepted on purpose -- it is the only way to empty a trail -- and the dry run the command defaults to reports the count first.
 
 Three properties of this reader are worth knowing before you build on it:
 
@@ -414,7 +410,8 @@ Every exception in the package implements `Contract\ExceptionInterface`, so a co
 
 ## Example application
 
-A runnable product nomenclator lives under [`.example/`](./.example/README.md): categories, products, sales channels and joined-inheritance offers whose every change is written to an audit trail in a second database *and* to a JSONL file, with the bundle booted by a micro-kernel the way an application boots it -- two connections, two entity managers, one doctrine storage, one file storage, one auditor with a global `ignored_fields`. Its scenarios cover insert, update and delete with the username and the transaction extras, both ignore mechanisms, an owning `ManyToMany` published, withdrawn, cleared and carried away by the removal of its owner, joined inheritance with a child that opts out, the parity of the two storages, and all four commands -- `schema:create`, `schema:update`, `audit:read` by identity, operation and cursor, and `audit:purge` walking one bounded batch per run. It runs on MySQL and MariaDB and installs the bundle from the working tree through a path repository, so it always tests the code as it stands; run it with `.dev/validate/all.sh --example` (which starts the databases) or `cd .example && composer install && composer check`. The directory is `export-ignore`d and never reaches a consumer's `vendor/`.
+A runnable product nomenclator lives under [`.example/`](./.example/README.md): categories, products, sales channels and joined-inheritance offers whose every change is written to an audit trail in a second database *and* to a JSONL file, with the bundle booted by a micro-kernel the way an application boots it -- two connections, two entity managers, one doctrine storage, one file storage, one auditor with a global `ignored_fields`. Its scenarios cover insert, update and delete with the username and the transaction extras, both ignore mechanisms, an owning `ManyToMany` published, withdrawn, cleared and carried away by the removal of its owner, joined inheritance with a child that opts out, the parity of the two storages, and all four commands -- `schema:create`, `schema:update`, `audit:read` by identity, operation and cursor, and `audit:purge` walking one bounded batch per run. It runs on MySQL and MariaDB and installs the bundle from the working tree through a path repository, so it
+always tests the code as it stands; run it with `.dev/validate/all.sh --example` (which starts the databases) or `cd .example && composer install && composer check`. The directory is `export-ignore`d and never reaches a consumer's `vendor/`.
 
 ## Dev
 

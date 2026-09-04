@@ -125,6 +125,7 @@ final class PurgeCommandTest extends TestCase
         static::assertSame(1, $commandTester->execute(['--before' => '2025-01-01', '--force' => true]));
         static::assertStringContainsString('could not lock audit file', $commandTester->getDisplay());
     }
+
     /**
      * A `--before` in the future purges the whole trail, and that stays allowed on purpose: it is the only way to
      * empty an audit file, and the dry run that runs without `--force` reports the count first.

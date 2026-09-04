@@ -88,6 +88,7 @@ class FileStorage implements StorageInterface
         $stat = \fstat($handle);
 
         /* append mode leaves the pointer at 0 until the first write, so the size cannot be read with `ftell()` */
+
         return false === $stat ? 0 : \max(0, (int)$stat['size']);
     }
 

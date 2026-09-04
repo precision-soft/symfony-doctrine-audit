@@ -22,10 +22,10 @@ use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Configuration;
 use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Storage;
-use ReflectionMethod;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
 use stdClass;
 
 /**
