@@ -17,7 +17,7 @@ use PrecisionSoft\Doctrine\Audit\Attribute\Auditable;
 #[ORM\Table(name: 'vehicle')]
 #[ORM\InheritanceType('JOINED')]
 #[ORM\DiscriminatorColumn(name: 'vehicle_kind', type: 'string', length: 16)]
-#[ORM\DiscriminatorMap(['car' => CarVehicle::class])]
+#[ORM\DiscriminatorMap(['car' => CarVehicle::class, 'van' => VanVehicle::class])]
 abstract class AbstractVehicle
 {
     #[ORM\Id]

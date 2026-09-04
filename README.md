@@ -15,7 +15,7 @@ Any suggestions are welcomed.
 - PHP >= 8.2
 - Symfony 7.* or 8.* -- a Symfony 8 set needs PHP >= 8.4, which is what `symfony/config` 8 requires; below that composer resolves 7.x
 - Doctrine ORM 3.*
-- Doctrine DBAL 4.*
+- Doctrine DBAL 4.2 or newer -- `Types::ENUM` and `Column::getValues()`, which the audit schema needs to keep an enum column stable, arrived in 4.2
 
 ## Installation
 
@@ -46,14 +46,14 @@ Owning `ManyToMany` changes are grouped by association and contain `owner_class`
 
 Auditing is driven by Doctrine ORM flush events, so a few categories of changes are intentionally **not** captured:
 
-- **Inverse-side association changes** -- Owning `ManyToMany` collections are audited with deterministic owner and target identifiers under the transaction's `collection_changes` payload. Inverse-side and `OneToMany` collections are not recorded independently because Doctrine persists their relationship through the owning side.
+- **Inverse-side association changes** -- Owning `ManyToMany` collections are audited with deterministic owner and target identifiers under the transaction's `collection_changes` payload, including the rows a `Collection::clear()` or the removal of the owner takes with it. Inverse-side and `OneToMany` collections are not recorded independently because Doctrine persists their relationship through the owning side.
 - **Bulk DQL / DBAL operations** -- `UPDATE`/`DELETE` issued via DQL or raw DBAL bypass the Unit of Work and therefore dispatch no flush events, so they produce no audit rows. Mutate entities through the ORM (persist/remove + flush) when an audit trail is required.
-- **File storage locking** -- `FileStorage` takes an exclusive advisory lock while writing each complete JSONL record and handles partial writes. The lock coordinates writers that use this storage on the same filesystem; network filesystems must provide working `flock()` semantics.
+- **File storage locking** -- `FileStorage` takes an exclusive advisory lock while writing each complete JSONL record; a write that fails after emitting bytes is truncated back under the same lock, so the file never keeps a half-written record. The lock coordinates writers that use this storage on the same filesystem; network filesystems must provide working `flock()` semantics.
 
 A few further constraints are not limitations of the flush cycle but properties of how the audit schema is laid out:
 
 - **The audit database must not be the source database.** Audit tables carry the *same names* as the entity tables they mirror, so pointing a doctrine storage's `entity_manager` at the audited connection makes `schema:create` replace your application's tables. Always give the audit storage its own database.
-- **A collection's identifiers must be scalar.** Owner and target identifiers are recorded as scalars, with backed enums reduced to their value and dates to ATOM. An entity whose composite primary key contains an association therefore cannot take part in an audited collection - the flush is rejected with `identifier field ... is not scalar`. Audit the join entity of the association instead.
+- **A collection's identifiers must be renderable as scalars.** Owner and target identifiers are recorded as scalars: backed enums are reduced to their value, dates to ATOM, and anything `Stringable` -- every `Uuid`, `Ulid` or uid value object -- to its string form. An entity whose primary key contains an association still cannot take part in an audited collection, because no string form of it would be stable; the flush is rejected with `identifier field ... is not scalar`, and the refusal is raised in `onFlush`, before the transaction opens, whenever the identifier is already readable there. Audit the join entity of the association instead.
 - **Many-to-many join tables are not mirrored.** A join table has no transaction id column, so it is not an audit table and is dropped from the generated audit schema; the collection's history lives in the transaction's `collection_changes` payload instead.
 - **Every audited entity needs a primary key**, and its identifier fields cannot be listed in `ignored_fields` or marked `#[Ignore]` -- the audit table's primary key is the entity's key plus the transaction id.
 - **`transaction_id_column_type` must be an integer type** (`integer`, `bigint`, `smallint`). The transaction table's `id` is an autoincrement column read back through `lastInsertId()`; anything else is rejected when the container is built.
@@ -108,6 +108,7 @@ precision_soft_doctrine_audit:
 - The `ignored_fields` option (both global and per-entity via `#[Ignore]`) reduces the number of columns tracked and therefore the volume of audit data written.
 - File storage appends JSONL lines and does not open a database connection, making it the lightest option for development or low-volume environments. Each append takes an exclusive `flock()` for the duration of one record, so many concurrent writers serialize on it.
 - Owning `ManyToMany` collection changes cost one identifier read per added or removed target, plus one JSON column on the transaction row. Reading identifiers does not initialize the target entities, so the cost scales with the size of the change, not with the size of the collection.
+- Removing an audited owner, or clearing one of its owning collections, costs **one `SELECT` per collection** during `onFlush`. Doctrine schedules neither case in a way that keeps the set it is about to delete -- `Collection::clear()` takes its snapshot after emptying itself, and removing the owner deletes the join rows straight from the persister -- so the rows are read from the database while they are still there. Nothing is read for an entity without owning collections.
 - Reading through `FileAuditReader` scans the file: a filter is applied per record and a cursor skips lines without decoding them, but there is no index. It suits operational lookups and retention, not reporting over a large history - use a doctrine storage and query the audit tables for that.
 
 ## Usage
@@ -260,6 +261,9 @@ Running `schema:update` immediately after `schema:create` emits no statements, s
 
 ### File storage: reading and retention
 
+A JSONL record keys a value by the entity's **field** name where the audit table uses its **column** name, and its
+`date` is written in ATOM with the offset, so a reader or a purge running in another timezone means the same instant.
+
 Every `file` storage also registers a reader on the same path, so nothing has to be configured twice:
 
 * ``precision_soft_doctrine_audit.storage.<storage-name>.reader`` -- a `FileAuditReader`, which implements both
@@ -317,10 +321,19 @@ The same two operations are available from the console, one pair per auditor and
   (repeatable), `--from`, `--until`, `--username`, `--operation`, `--limit`, `--cursor`.
 * ``precision-soft:doctrine:audit:purge:<auditor-name>:<storage-name>`` -- `--before` (mandatory), `--batch-size`, and `--force` to purge instead of reporting.
 
+The console only ever hands over strings while a JSONL record keeps the column's JSON type, and the two are compared strictly, so `--identity` casts what looks like a number or a keyword: `id=42` is the integer `42`, `paid=true` the boolean, `note=null` the null. **Wrap the value in double quotes to keep it a string**, which is what a code, a reference or a zero-padded number needs:
+
+```shell
+bin/console precision-soft:doctrine:audit:read:catalogue:jsonl --identity='code="007"'
+```
+
+Without the quotes `code=007` is the integer `7` and matches nothing, silently. A future `--before` is accepted on purpose -- it is the only way to empty a trail -- and the dry run the command defaults to reports the count first.
+
 Three properties of this reader are worth knowing before you build on it:
 
 - **The contract is satisfied by the JSONL storage only, and its payload is `@experimental`.** `AuditPage::getTransactions()` returns the decoded JSONL records as they are on disk. There is no doctrine-backed reader yet, and the shape becomes a dedicated DTO once there is one -- the method signatures are stable, but what they carry is not covered by the backward compatibility promise until then.
-- **A cursor is a line offset**, opaque but not stable: a purge between two pages shifts the lines, so a cursor held across a purge resumes at the wrong place. Page through in one pass, or re-query from the start.
+- **A cursor is a line offset**, opaque but not stable: a purge between two pages shifts the lines, so a cursor held across a purge resumes at the wrong place. Page through in one pass, or re-query from the start. A cursor that does not decode back to exactly the number it carries is refused rather than treated as end-of-data.
+- **`identity` matches the value a transaction left behind**, never the one it replaced: a column stored as an `old`/`new` pair is compared on its `new` half, because an audit lookup asks which transaction produced a given state.
 - **A collection change matches on either side of the association.** `entityClass` matches its `owner_class` or its `target_class`, and `identity` matches the owner's identifier or one of the added or removed target identifiers. `operation` is entity-only -- a collection change carries none, so setting `operation` narrows the query to entity rows and excludes collection changes.
 
 Purge rewrites the audit file, so it is a maintenance operation: run it when audited flushes are not in flight. An interrupted purge leaves the records it meant to keep next to the audit file as `<file>.purge` and refuses to run again until that file is dealt with, rather than leaving a truncated audit trail.
@@ -394,6 +407,11 @@ What this bundle attaches:
 
 Every exception in the package implements `Contract\ExceptionInterface`, so a consumer can read the context off any of them without knowing the concrete class. A subclass of your own that already declares a `$context` property or a
 `getContext()`/`setContext()` method will collide with `Exception\Trait\ExceptionTrait`.
+
+## Example application
+
+A runnable product nomenclator lives under [`.example/`](./.example/README.md): categories, products, sales channels and joined-inheritance offers whose every change is written to an audit trail in a second database *and* to a JSONL file, with the bundle booted by a micro-kernel the way an application boots it -- two connections, two entity managers, one doctrine storage, one file storage, one auditor with a global `ignored_fields`. Its scenarios cover insert, update and delete with the username and the transaction extras, both ignore mechanisms, an owning `ManyToMany` published, withdrawn, cleared and carried away by the removal of its owner, joined inheritance with a child that opts out, the parity of the two storages, and all four commands -- `schema:create`, `schema:update`, `audit:read` by identity, operation and cursor, and `audit:purge` walking one bounded batch per run. It runs on MySQL and MariaDB and installs the bundle from the working tree through a path repository, so it
+always tests the code as it stands; run it with `.dev/validate/all.sh --example` (which starts the databases) or `cd .example && composer install && composer check`. The directory is `export-ignore`d and never reaches a consumer's `vendor/`.
 
 ## Dev
 

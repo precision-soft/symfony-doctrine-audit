@@ -82,13 +82,21 @@ class FileAuditReader implements AuditReaderInterface, AuditPurgerInterface
             }
 
             $purgeHandle = $this->openLocked($purgeFile, 'w+b', \LOCK_EX);
+            $keptSetComplete = false;
 
             try {
                 [$matched, $hasMore] = $this->partition($handle, $purgeHandle, $request);
 
+                $keptSetComplete = true;
+
                 $this->copyBack($purgeHandle, $handle);
             } finally {
                 $this->unlock($purgeHandle);
+
+                /* only a complete kept set is worth restoring; leaving a partial one behind would turn the refusal above into an instruction to overwrite the intact audit file with a fraction of itself */
+                if (false === $keptSetComplete) {
+                    \unlink($purgeFile);
+                }
             }
 
             if (false === \unlink($purgeFile)) {
@@ -399,7 +407,8 @@ class FileAuditReader implements AuditReaderInterface, AuditPurgerInterface
 
         $decoded = \base64_decode($cursor, true);
 
-        if (false === $decoded || 1 !== \preg_match('/^\d+$/', $decoded)) {
+        /* `$` alone also accepts a trailing newline, and a value beyond PHP_INT_MAX saturates into an empty page that reads exactly like end of data */
+        if (false === $decoded || 1 !== \preg_match('/^\d+$/D', $decoded) || $decoded !== (string)(int)$decoded) {
             throw new Exception('invalid audit cursor');
         }
 

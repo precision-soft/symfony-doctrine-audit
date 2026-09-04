@@ -45,11 +45,6 @@ final class AuditorTest extends AbstractTestCase
 {
     private const REFL_FIELDS_DEPRECATION_LINK = 'https://github.com/doctrine/orm/pull/11659';
 
-    public static function getMockDto(): MockDto
-    {
-        return new MockDto(stdClass::class);
-    }
-
     private Configuration $configuration;
     private EntityManagerInterface&MockInterface $entityManager;
     private StorageInterface&MockInterface $storage;
@@ -58,106 +53,9 @@ final class AuditorTest extends AbstractTestCase
     private AnnotationReadServiceInterface&MockInterface $annotationReadService;
     private UnitOfWork&MockInterface $unitOfWork;
 
-    protected function setUp(): void
+    public static function getMockDto(): MockDto
     {
-        $this->configuration = new Configuration([]);
-        $this->entityManager = Mockery::mock(EntityManagerInterface::class);
-        $this->storage = Mockery::mock(StorageInterface::class);
-        $this->transactionProvider = Mockery::mock(TransactionProviderInterface::class);
-        $this->logger = Mockery::mock(LoggerInterface::class);
-        $this->annotationReadService = Mockery::mock(AnnotationReadServiceInterface::class);
-        $this->unitOfWork = Mockery::mock(UnitOfWork::class);
-
-        $this->entityManager->shouldReceive('getUnitOfWork')
-            ->andReturn($this->unitOfWork);
-
-        $this->unitOfWork->shouldReceive('getScheduledCollectionUpdates')->byDefault()->andReturn([]);
-        $this->unitOfWork->shouldReceive('getScheduledCollectionDeletions')->byDefault()->andReturn([]);
-
-        $this->annotationReadService->shouldReceive('getEntityClass')
-            ->andReturnUsing(static fn(object $entityOrProxy): string => $entityOrProxy::class);
-    }
-
-    private function createAuditor(?LoggerInterface $logger = null): Auditor
-    {
-        return $this->buildAuditor($logger ?? $this->logger);
-    }
-
-    private function createAuditorWithoutLogger(): Auditor
-    {
-        return $this->buildAuditor(null);
-    }
-
-    /**
-     * @param StorageInterface[] $storages
-     */
-    private function createAuditorFlushingOneInsert(array $storages, OneEntity $entity): Auditor
-    {
-        $auditor = new Auditor(
-            $this->configuration,
-            $this->entityManager,
-            $storages,
-            $this->transactionProvider,
-            $this->logger,
-            $this->annotationReadService,
-        );
-
-        $this->annotationReadService->shouldReceive('read')
-            ->once()
-            ->with($this->entityManager)
-            ->andReturn([OneEntity::class => new AnnotationEntityDto(OneEntity::class, [])]);
-
-        $this->unitOfWork->shouldReceive('getScheduledEntityDeletions')->once()->andReturn([]);
-        $this->unitOfWork->shouldReceive('getScheduledEntityInsertions')->once()->andReturn([$entity]);
-        $this->unitOfWork->shouldReceive('getScheduledEntityUpdates')->once()->andReturn([]);
-        $this->unitOfWork->shouldReceive('getEntityIdentifier')
-            ->with($entity)
-            ->andReturn(['id' => 1]);
-        $this->unitOfWork->shouldReceive('getOriginalEntityData')
-            ->with($entity)
-            ->andReturn(['id' => 1, 'name' => 'Test', 'description' => 'Desc']);
-
-        $classMetadata = new ClassMetadata(OneEntity::class);
-        $classMetadata->mapField(['fieldName' => 'id', 'type' => 'integer', 'columnName' => 'id']);
-        $classMetadata->mapField(['fieldName' => 'name', 'type' => 'string', 'columnName' => 'name']);
-        $classMetadata->mapField(['fieldName' => 'description', 'type' => 'string', 'columnName' => 'description']);
-        $classMetadata->table = ['name' => 'one_entity'];
-
-        $this->entityManager->shouldReceive('getClassMetadata')
-            ->with(OneEntity::class)
-            ->andReturn($classMetadata);
-
-        $ormConfiguration = Mockery::mock(OrmConfiguration::class);
-        $ormConfiguration->shouldReceive('getQuoteStrategy')->andReturn(new DefaultQuoteStrategy());
-
-        $platform = Mockery::mock(AbstractPlatform::class);
-        $platform->shouldReceive('quoteIdentifier')->andReturnUsing(fn(string $identifier) => $identifier);
-
-        $connection = Mockery::mock(Connection::class);
-        $connection->shouldReceive('getDatabasePlatform')->andReturn($platform);
-
-        $this->entityManager->shouldReceive('getConfiguration')->andReturn($ormConfiguration);
-        $this->entityManager->shouldReceive('getConnection')->andReturn($connection);
-
-        $this->transactionProvider->shouldReceive('getTransaction')
-            ->once()
-            ->andReturn(new TransactionDto('admin'));
-
-        $auditor->onFlush(Mockery::mock(OnFlushEventArgs::class));
-
-        return $auditor;
-    }
-
-    private function buildAuditor(?LoggerInterface $logger): Auditor
-    {
-        return new Auditor(
-            $this->configuration,
-            $this->entityManager,
-            [$this->storage],
-            $this->transactionProvider,
-            $logger,
-            $this->annotationReadService,
-        );
+        return new MockDto(stdClass::class);
     }
 
     public function testOnFlushReturnsEarlyWhenNoAuditedEntities(): void
@@ -1229,5 +1127,107 @@ final class AuditorTest extends AbstractTestCase
         $this->expectExceptionMessage('first sink down');
 
         $auditor->postFlush(Mockery::mock(PostFlushEventArgs::class));
+    }
+
+    protected function setUp(): void
+    {
+        $this->configuration = new Configuration([]);
+        $this->entityManager = Mockery::mock(EntityManagerInterface::class);
+        $this->storage = Mockery::mock(StorageInterface::class);
+        $this->transactionProvider = Mockery::mock(TransactionProviderInterface::class);
+        $this->logger = Mockery::mock(LoggerInterface::class);
+        $this->annotationReadService = Mockery::mock(AnnotationReadServiceInterface::class);
+        $this->unitOfWork = Mockery::mock(UnitOfWork::class);
+
+        $this->entityManager->shouldReceive('getUnitOfWork')
+            ->andReturn($this->unitOfWork);
+
+        $this->unitOfWork->shouldReceive('getScheduledCollectionUpdates')->byDefault()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledCollectionDeletions')->byDefault()->andReturn([]);
+
+        $this->annotationReadService->shouldReceive('getEntityClass')
+            ->andReturnUsing(static fn(object $entityOrProxy): string => $entityOrProxy::class);
+    }
+
+    private function createAuditor(?LoggerInterface $logger = null): Auditor
+    {
+        return $this->buildAuditor($logger ?? $this->logger);
+    }
+
+    private function createAuditorWithoutLogger(): Auditor
+    {
+        return $this->buildAuditor(null);
+    }
+
+    /**
+     * @param StorageInterface[] $storages
+     */
+    private function createAuditorFlushingOneInsert(array $storages, OneEntity $entity): Auditor
+    {
+        $auditor = new Auditor(
+            $this->configuration,
+            $this->entityManager,
+            $storages,
+            $this->transactionProvider,
+            $this->logger,
+            $this->annotationReadService,
+        );
+
+        $this->annotationReadService->shouldReceive('read')
+            ->once()
+            ->with($this->entityManager)
+            ->andReturn([OneEntity::class => new AnnotationEntityDto(OneEntity::class, [])]);
+
+        $this->unitOfWork->shouldReceive('getScheduledEntityDeletions')->once()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityInsertions')->once()->andReturn([$entity]);
+        $this->unitOfWork->shouldReceive('getScheduledEntityUpdates')->once()->andReturn([]);
+        $this->unitOfWork->shouldReceive('getEntityIdentifier')
+            ->with($entity)
+            ->andReturn(['id' => 1]);
+        $this->unitOfWork->shouldReceive('getOriginalEntityData')
+            ->with($entity)
+            ->andReturn(['id' => 1, 'name' => 'Test', 'description' => 'Desc']);
+
+        $classMetadata = new ClassMetadata(OneEntity::class);
+        $classMetadata->mapField(['fieldName' => 'id', 'type' => 'integer', 'columnName' => 'id']);
+        $classMetadata->mapField(['fieldName' => 'name', 'type' => 'string', 'columnName' => 'name']);
+        $classMetadata->mapField(['fieldName' => 'description', 'type' => 'string', 'columnName' => 'description']);
+        $classMetadata->table = ['name' => 'one_entity'];
+
+        $this->entityManager->shouldReceive('getClassMetadata')
+            ->with(OneEntity::class)
+            ->andReturn($classMetadata);
+
+        $ormConfiguration = Mockery::mock(OrmConfiguration::class);
+        $ormConfiguration->shouldReceive('getQuoteStrategy')->andReturn(new DefaultQuoteStrategy());
+
+        $platform = Mockery::mock(AbstractPlatform::class);
+        $platform->shouldReceive('quoteIdentifier')->andReturnUsing(fn(string $identifier) => $identifier);
+
+        $connection = Mockery::mock(Connection::class);
+        $connection->shouldReceive('getDatabasePlatform')->andReturn($platform);
+
+        $this->entityManager->shouldReceive('getConfiguration')->andReturn($ormConfiguration);
+        $this->entityManager->shouldReceive('getConnection')->andReturn($connection);
+
+        $this->transactionProvider->shouldReceive('getTransaction')
+            ->once()
+            ->andReturn(new TransactionDto('admin'));
+
+        $auditor->onFlush(Mockery::mock(OnFlushEventArgs::class));
+
+        return $auditor;
+    }
+
+    private function buildAuditor(?LoggerInterface $logger): Auditor
+    {
+        return new Auditor(
+            $this->configuration,
+            $this->entityManager,
+            [$this->storage],
+            $this->transactionProvider,
+            $logger,
+            $this->annotationReadService,
+        );
     }
 }

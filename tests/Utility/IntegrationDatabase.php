@@ -17,8 +17,9 @@ use Doctrine\ORM\Configuration;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\Driver\AttributeDriver;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Exception\FixtureException;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Type\SubjectReferenceType;
 use PrecisionSoft\Doctrine\Audit\Type\AuditOperationType;
-use RuntimeException;
 
 /**
  * Every helper takes the schema name explicitly because audit tables carry the same name as the entity tables they mirror, so the source and the audit schema can never be the same database.
@@ -97,6 +98,9 @@ final class IntegrationDatabase
     /** Not `ORMSetup::createAttributeMetadataConfiguration()`, which installs a PSR-6 cache and so hard-requires `symfony/cache`; building `Configuration` directly also leaves the caches unset, so a mapping change cannot be masked. */
     public static function createEntityManager(Connection $connection): EntityManagerInterface
     {
+        /* the fixture entity set maps custom types, so every entity manager built for the tests needs them - a schema build that skips this dies on an unknown column type */
+        static::registerSubjectReferenceType();
+
         $configuration = new Configuration();
         $configuration->setMetadataDriverImpl(new AttributeDriver([__DIR__ . '/Entity']));
         $configuration->setProxyDir(\sys_get_temp_dir() . '/precision-soft-doctrine-audit-proxies');
@@ -104,6 +108,14 @@ final class IntegrationDatabase
         $configuration->setAutoGenerateProxyClasses(true);
 
         return new EntityManager($connection, $configuration);
+    }
+
+    /** Doctrine's type registry is global, so the `hasType` guard is required: a second `addType()` throws. */
+    public static function registerSubjectReferenceType(): void
+    {
+        if (false === Type::hasType(SubjectReferenceType::NAME)) {
+            Type::addType(SubjectReferenceType::NAME, SubjectReferenceType::class);
+        }
     }
 
     /** Doctrine's type registry is global, so the `hasType` guard is required: a second `addType()` throws. */
@@ -116,7 +128,7 @@ final class IntegrationDatabase
         }
 
         if (false === (Type::getType($typeName) instanceof AuditOperationType)) {
-            throw new RuntimeException(\sprintf('`%s` is not the audit operation type', $typeName));
+            throw new FixtureException(\sprintf('`%s` is not the audit operation type', $typeName));
         }
     }
 

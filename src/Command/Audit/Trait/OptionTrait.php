@@ -120,6 +120,11 @@ trait OptionTrait
     /** The console only ever hands over strings, while a jsonl record keeps the column's json type, and the two are compared strictly. */
     protected function castIdentityValue(string $value): string|int|float|bool|null
     {
+        /* the escape hatch for a string column whose value looks like a number or a keyword: `code="007"` stays `007`, where `code=007` would be the integer 7 */
+        if (2 <= \strlen($value) && true === \str_starts_with($value, '"') && true === \str_ends_with($value, '"')) {
+            return \substr($value, 1, -1);
+        }
+
         return match (true) {
             'null' === $value => null,
             'true' === $value => true,

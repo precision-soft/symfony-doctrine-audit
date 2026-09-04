@@ -25,6 +25,7 @@ use PrecisionSoft\Doctrine\Audit\Storage\Doctrine\Storage;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
 use stdClass;
 
 /**
@@ -32,39 +33,14 @@ use stdClass;
  */
 final class StorageTest extends AbstractTestCase
 {
-    public static function getMockDto(): MockDto
-    {
-        return new MockDto(stdClass::class);
-    }
-
     private EntityManagerInterface&MockInterface $entityManager;
     private Configuration $configuration;
     private Connection&MockInterface $connection;
     private AbstractPlatform&MockInterface $platform;
 
-    protected function setUp(): void
+    public static function getMockDto(): MockDto
     {
-        $this->entityManager = Mockery::mock(EntityManagerInterface::class);
-        $this->configuration = new Configuration([]);
-        $this->connection = Mockery::mock(Connection::class);
-        $this->platform = Mockery::mock(AbstractPlatform::class);
-
-        $this->entityManager->shouldReceive('getConnection')
-            ->andReturn($this->connection);
-        $this->connection->shouldReceive('getDatabasePlatform')
-            ->andReturn($this->platform);
-        $this->connection->shouldReceive('beginTransaction')->byDefault();
-        $this->connection->shouldReceive('commit')->byDefault();
-        $this->connection->shouldReceive('rollBack')->byDefault();
-    }
-
-    private function createStorage(?LoggerInterface $logger = null): Storage
-    {
-        return new Storage(
-            $this->entityManager,
-            $this->configuration,
-            $logger,
-        );
+        return new MockDto(stdClass::class);
     }
 
     public function testSaveReturnsEarlyWhenNoEntitiesOrCollectionChanges(): void
@@ -344,5 +320,42 @@ final class StorageTest extends AbstractTestCase
         $this->expectExceptionMessage('SQL error');
 
         $storage->save($storageDto);
+    }
+
+    /**
+     * How a consumer sees the v4.0.0 break: a subclass that kept `getTransactionId(TransactionDto)` cannot even be
+     * loaded, because php refuses the narrowed parameter at declaration time - there is nothing to catch.
+     */
+    public function testTheTransactionIdContractTakesTheWholeStorageDto(): void
+    {
+        $parameters = (new ReflectionMethod(Storage::class, 'getTransactionId'))->getParameters();
+
+        static::assertCount(1, $parameters);
+        static::assertSame(StorageDto::class, (string)$parameters[0]->getType());
+    }
+
+    protected function setUp(): void
+    {
+        $this->entityManager = Mockery::mock(EntityManagerInterface::class);
+        $this->configuration = new Configuration([]);
+        $this->connection = Mockery::mock(Connection::class);
+        $this->platform = Mockery::mock(AbstractPlatform::class);
+
+        $this->entityManager->shouldReceive('getConnection')
+            ->andReturn($this->connection);
+        $this->connection->shouldReceive('getDatabasePlatform')
+            ->andReturn($this->platform);
+        $this->connection->shouldReceive('beginTransaction')->byDefault();
+        $this->connection->shouldReceive('commit')->byDefault();
+        $this->connection->shouldReceive('rollBack')->byDefault();
+    }
+
+    private function createStorage(?LoggerInterface $logger = null): Storage
+    {
+        return new Storage(
+            $this->entityManager,
+            $this->configuration,
+            $logger,
+        );
     }
 }

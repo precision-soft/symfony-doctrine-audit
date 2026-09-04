@@ -33,76 +33,6 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
     private const AUDITOR_NAME = 'main';
     private const TRANSACTION_PROVIDER = 'App\\TransactionProvider';
 
-    /** @param array<string, mixed> $config */
-    private function buildContainer(array $config): ContainerBuilder
-    {
-        $containerBuilder = new ContainerBuilder();
-        $precisionSoftDoctrineAuditExtension = new PrecisionSoftDoctrineAuditExtension();
-        $precisionSoftDoctrineAuditExtension->load([$config], $containerBuilder);
-
-        return $containerBuilder;
-    }
-
-    /** @return array<string, array<string, string>> */
-    private function validDoctrineStorageConfig(string $storageName, string $entityManager, ?string $logger = null): array
-    {
-        $config = [
-            'type' => 'doctrine',
-            'entity_manager' => $entityManager,
-        ];
-
-        if (null !== $logger) {
-            $config['logger'] = $logger;
-        }
-
-        return [$storageName => $config];
-    }
-
-    /** @return array<string, array<string, string>> */
-    private function validFileStorageConfig(string $storageName, string $file, ?string $logger = null): array
-    {
-        $config = [
-            'type' => 'file',
-            'file' => $file,
-        ];
-
-        if (null !== $logger) {
-            $config['logger'] = $logger;
-        }
-
-        return [$storageName => $config];
-    }
-
-    /** @return array<string, array<string, string>> */
-    private function validCustomStorageConfig(string $storageName, string $service): array
-    {
-        return [
-            $storageName => [
-                'type' => 'custom',
-                'service' => $service,
-            ],
-        ];
-    }
-
-    /**
-     * @param string[] $storageNames
-     * @return array<string, array<string, mixed>>
-     */
-    private function validAuditorConfig(array $storageNames, ?string $logger = null): array
-    {
-        $config = [
-            'entity_manager' => 'default',
-            'storages' => $storageNames,
-            'transaction_provider' => static::TRANSACTION_PROVIDER,
-        ];
-
-        if (null !== $logger) {
-            $config['logger'] = $logger;
-        }
-
-        return [static::AUDITOR_NAME => $config];
-    }
-
     public function testDoctrineStorageWithoutLogger(): void
     {
         $storageName = 'audit_store';
@@ -452,5 +382,75 @@ final class PrecisionSoftDoctrineAuditExtensionTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    /** @param array<string, mixed> $configuration */
+    private function buildContainer(array $configuration): ContainerBuilder
+    {
+        $containerBuilder = new ContainerBuilder();
+        $precisionSoftDoctrineAuditExtension = new PrecisionSoftDoctrineAuditExtension();
+        $precisionSoftDoctrineAuditExtension->load([$configuration], $containerBuilder);
+
+        return $containerBuilder;
+    }
+
+    /** @return array<string, array<string, string>> */
+    private function validDoctrineStorageConfig(string $storageName, string $entityManager, ?string $logger = null): array
+    {
+        $configuration = [
+            'type' => 'doctrine',
+            'entity_manager' => $entityManager,
+        ];
+
+        if (null !== $logger) {
+            $configuration['logger'] = $logger;
+        }
+
+        return [$storageName => $configuration];
+    }
+
+    /** @return array<string, array<string, string>> */
+    private function validFileStorageConfig(string $storageName, string $file, ?string $logger = null): array
+    {
+        $configuration = [
+            'type' => 'file',
+            'file' => $file,
+        ];
+
+        if (null !== $logger) {
+            $configuration['logger'] = $logger;
+        }
+
+        return [$storageName => $configuration];
+    }
+
+    /** @return array<string, array<string, string>> */
+    private function validCustomStorageConfig(string $storageName, string $service): array
+    {
+        return [
+            $storageName => [
+                'type' => 'custom',
+                'service' => $service,
+            ],
+        ];
+    }
+
+    /**
+     * @param string[] $storageNames
+     * @return array<string, array<string, mixed>>
+     */
+    private function validAuditorConfig(array $storageNames, ?string $logger = null): array
+    {
+        $configuration = [
+            'entity_manager' => 'default',
+            'storages' => $storageNames,
+            'transaction_provider' => static::TRANSACTION_PROVIDER,
+        ];
+
+        if (null !== $logger) {
+            $configuration['logger'] = $logger;
+        }
+
+        return [static::AUDITOR_NAME => $configuration];
     }
 }

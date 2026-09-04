@@ -25,6 +25,7 @@ class FailingFileStorage extends FileStorage
         protected readonly bool $write = true,
         protected readonly bool $flush = true,
         protected readonly ?int $partialWriteSize = null,
+        protected readonly ?int $failAfterBytes = null,
     ) {
         parent::__construct($file, $logger);
     }
@@ -37,6 +38,13 @@ class FailingFileStorage extends FileStorage
     protected function writeFile($handle, string $contents): false|int
     {
         if (false === $this->write) {
+            return false;
+        }
+
+        /* the io error that leaves bytes behind: what `fwrite` does when the device fills up mid-record */
+        if (null !== $this->failAfterBytes) {
+            parent::writeFile($handle, (string)\substr($contents, 0, $this->failAfterBytes));
+
             return false;
         }
 

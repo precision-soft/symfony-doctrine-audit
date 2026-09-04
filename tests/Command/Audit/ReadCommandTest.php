@@ -18,6 +18,7 @@ use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Dto\Query\AuditPage;
 use PrecisionSoft\Doctrine\Audit\Dto\Query\AuditQuery;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
+use PrecisionSoft\Doctrine\Audit\Storage\FileAuditReader;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /** @internal */
@@ -197,6 +198,82 @@ final class ReadCommandTest extends TestCase
 
         static::assertSame(1, $commandTester->execute([]));
         static::assertStringContainsString('storage is gone', $commandTester->getDisplay());
+    }
+
+    public function testAQuotedIdentityKeepsAStringThatLooksNumeric(): void
+    {
+        $file = $this->writeRecord(['code' => '007', 'id' => 42]);
+
+        try {
+            $quoted = new CommandTester(new ReadCommand('audit:read', new FileAuditReader($file)));
+
+            static::assertSame(0, $quoted->execute(['--identity' => ['code="007"']]));
+            static::assertStringContainsString('1 transaction(s)', $quoted->getDisplay());
+
+            /* unquoted keeps the numeric cast, which is what finds an integer column */
+            $unquoted = new CommandTester(new ReadCommand('audit:read', new FileAuditReader($file)));
+
+            static::assertSame(0, $unquoted->execute(['--identity' => ['id=42']]));
+            static::assertStringContainsString('1 transaction(s)', $unquoted->getDisplay());
+
+            /* and unquoted `007` is the integer 7, so it must not match the string column */
+            $lossy = new CommandTester(new ReadCommand('audit:read', new FileAuditReader($file)));
+
+            static::assertSame(0, $lossy->execute(['--identity' => ['code=007']]));
+            static::assertStringContainsString('0 transaction(s)', $lossy->getDisplay());
+        } finally {
+            @\unlink($file);
+        }
+    }
+
+    public function testOnlyABalancedPairOfQuotesKeepsTheValueAString(): void
+    {
+        /** @var AuditReaderInterface&MockInterface $auditReader */
+        $auditReader = Mockery::mock(AuditReaderInterface::class);
+        $auditReader->shouldReceive('read')
+            ->once()
+            ->with(Mockery::on(function (AuditQuery $auditQuery): bool {
+                static::assertSame(
+                    [
+                        'empty' => '',
+                        'unterminated' => '"007',
+                        'unopened' => '007"',
+                        'quoted' => '7',
+                    ],
+                    $auditQuery->getIdentity(),
+                );
+
+                return true;
+            }))
+            ->andReturn(new AuditPage([], null));
+
+        $commandTester = new CommandTester(new ReadCommand('audit:read', $auditReader));
+
+        static::assertSame(0, $commandTester->execute([
+            '--identity' => ['empty=""', 'unterminated="007', 'unopened=007"', 'quoted="7"'],
+        ]));
+    }
+
+    /** @param array<string, scalar> $columns */
+    private function writeRecord(array $columns): string
+    {
+        $file = \tempnam(\sys_get_temp_dir(), 'audit-read-');
+
+        if (false === $file) {
+            throw new Exception('temp file failed');
+        }
+
+        \file_put_contents($file, \json_encode([
+            'username' => 'alice',
+            'date' => '2025-01-01 10:00:00',
+            'entities' => [[
+                'operation' => 'update',
+                'class' => 'App\\Order',
+                'columns' => $columns,
+            ]],
+        ], \JSON_THROW_ON_ERROR) . \PHP_EOL);
+
+        return $file;
     }
 
     private function createCommand(AuditPage $auditPage): ReadCommand

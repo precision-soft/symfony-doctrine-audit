@@ -32,6 +32,7 @@ use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Exception\StorageFailureException;
 use PrecisionSoft\Doctrine\Audit\Trait\ThrowTrait;
 use Psr\Log\LoggerInterface;
+use Stringable;
 use Throwable;
 
 class Auditor
@@ -77,6 +78,7 @@ class Auditor
             $collectionChanges = $this->createCollectionChanges(
                 $unitOfWork->getScheduledCollectionUpdates(),
                 $unitOfWork->getScheduledCollectionDeletions(),
+                $entitiesToDelete,
             );
 
             if ([] === $entitiesToDelete && [] === $entitiesToInsert && [] === $entitiesToUpdate && [] === $collectionChanges) {
@@ -240,7 +242,7 @@ class Auditor
             $isToOne = ($association['type'] & ClassMetadata::TO_ONE) > 0;
             $isOwningSide = true === $association['isOwningSide'];
 
-            if (false === ($isToOne && $isOwningSide)) {
+            if (false === $isToOne || false === $isOwningSide) {
                 /* to-many and inverse-side association changes are not audited (README Limitations) */
                 continue;
             }
@@ -253,13 +255,9 @@ class Auditor
                 ? $fieldChangeSet[1]
                 : ($entityData[$field] ?? null);
 
-            $relatedId = null;
-
-            if (null !== $associationData && true === $unitOfWork->isInIdentityMap($associationData)) {
-                $relatedId = $unitOfWork->getEntityIdentifier($associationData);
-            }
-
             $targetClassMetadata = $this->entityManager->getClassMetadata($association['targetEntity']);
+
+            $relatedId = $this->readRelatedIdentifier($associationData, $association['joinColumns'], $targetClassMetadata);
 
             foreach ($association['joinColumns'] as $joinColumn) {
                 $sourceColumn = $joinColumn['name'];
@@ -272,11 +270,8 @@ class Auditor
                 $oldRelatedFieldValue = null;
 
                 if (true === $hasOldValue) {
-                    $oldAssociationData = $fieldChangeSet[0];
-                    if (null !== $oldAssociationData && true === $unitOfWork->isInIdentityMap($oldAssociationData)) {
-                        $oldRelatedId = $unitOfWork->getEntityIdentifier($oldAssociationData);
-                        $oldRelatedFieldValue = $oldRelatedId[$targetFieldName] ?? null;
-                    }
+                    $oldRelatedId = $this->readRelatedIdentifier($fieldChangeSet[0], $association['joinColumns'], $targetClassMetadata);
+                    $oldRelatedFieldValue = $oldRelatedId[$targetFieldName] ?? null;
                 }
 
                 $auditorEntityDto->addField(
@@ -423,9 +418,10 @@ class Auditor
     /**
      * @param PersistentCollection<int, object>[] $collectionUpdates
      * @param PersistentCollection<int, object>[] $collectionDeletions
+     * @param object[] $entitiesToDelete
      * @return AuditorCollectionChangeDto[]
      */
-    protected function createCollectionChanges(array $collectionUpdates, array $collectionDeletions): array
+    protected function createCollectionChanges(array $collectionUpdates, array $collectionDeletions, array $entitiesToDelete = []): array
     {
         $collections = [];
 
@@ -451,24 +447,116 @@ class Auditor
             }
 
             $addedEntities = true === $completeDeletion ? [] : $this->filterObjects($collection->getInsertDiff());
+            /* `Collection::clear()` takes its snapshot after emptying the collection, so the snapshot is no longer the set that is about to go: the join rows are still in the database at this point and are the only remaining record of it */
             $removedEntities = true === $completeDeletion
-                ? $this->filterObjects($collection->getSnapshot())
+                ? $this->readCollectionTargets($owner, $mapping->fieldName, $mapping->targetEntity)
                 : $this->filterObjects($collection->getDeleteDiff());
 
-            if ([] === $addedEntities && [] === $removedEntities) {
+            $collectionChange = $this->createCollectionChange($owner, $mapping->fieldName, $mapping->targetEntity, $addedEntities, $removedEntities);
+
+            if (null === $collectionChange) {
                 continue;
             }
 
-            $collectionChanges[] = new AuditorCollectionChangeDto(
-                $owner,
-                $mapping->fieldName,
-                $mapping->targetEntity,
-                $addedEntities,
-                $removedEntities,
-            );
+            $collectionChanges[$this->getCollectionKey($owner, $mapping->fieldName)] = $collectionChange;
         }
 
-        return $collectionChanges;
+        /* deleting the owner removes its join rows through the persister without scheduling the collection at all, so nothing above ever sees them */
+        foreach ($entitiesToDelete as $entity) {
+            $classMetadata = $this->entityManager->getClassMetadata(
+                $this->annotationReadService->getEntityClass($entity),
+            );
+
+            foreach ($classMetadata->getAssociationMappings() as $field => $mapping) {
+                if (false === $mapping->isToMany() || false === $mapping->isOwningSide()) {
+                    continue;
+                }
+
+                $key = $this->getCollectionKey($entity, $field);
+
+                if (true === isset($collectionChanges[$key])) {
+                    continue;
+                }
+
+                $collectionChange = $this->createCollectionChange(
+                    $entity,
+                    $field,
+                    $mapping->targetEntity,
+                    [],
+                    $this->readCollectionTargets($entity, $field, $mapping->targetEntity),
+                );
+
+                if (null === $collectionChange) {
+                    continue;
+                }
+
+                $collectionChanges[$key] = $collectionChange;
+            }
+        }
+
+        return \array_values($collectionChanges);
+    }
+
+    protected function getCollectionKey(object $owner, string $field): string
+    {
+        return \sprintf('%s::%s', \spl_object_hash($owner), $field);
+    }
+
+    /**
+     * @param object[] $addedEntities
+     * @param object[] $removedEntities
+     */
+    protected function createCollectionChange(object $owner, string $field, string $targetClass, array $addedEntities, array $removedEntities): ?AuditorCollectionChangeDto
+    {
+        if ([] === $addedEntities && [] === $removedEntities) {
+            return null;
+        }
+
+        return new AuditorCollectionChangeDto(
+            $owner,
+            $field,
+            $targetClass,
+            $addedEntities,
+            $removedEntities,
+            $this->resolveStableIdentifier($owner),
+            $this->resolveStableIdentifiers($addedEntities),
+            $this->resolveStableIdentifiers($removedEntities),
+        );
+    }
+
+    /**
+     * The join rows an owning to-many still has in the database. `onFlush` runs before the orm opens its transaction,
+     * so this is the last point at which the set a delete or a `clear()` is about to remove can be read at all.
+     *
+     * @param class-string $targetClass
+     * @return object[]
+     */
+    protected function readCollectionTargets(object $owner, string $field, string $targetClass): array
+    {
+        $classMetadata = $this->entityManager->getClassMetadata(
+            $this->annotationReadService->getEntityClass($owner),
+        );
+        $identifier = $classMetadata->getIdentifierValues($owner);
+
+        if ([] === $identifier) {
+            return [];
+        }
+
+        /* the target has to be the root alias: dql refuses to select an entity reached only through a join */
+        $queryBuilder = $this->entityManager->createQueryBuilder()
+            ->select('target')
+            ->from($targetClass, 'target')
+            ->from($classMetadata->getName(), 'owner')
+            ->andWhere(\sprintf('target MEMBER OF owner.%s', $field));
+
+        foreach (\array_keys($identifier) as $position => $name) {
+            $parameter = \sprintf('collectionOwner%d', $position);
+
+            $queryBuilder->andWhere(\sprintf('owner.%s = :%s', $name, $parameter))
+                ->setParameter($parameter, $identifier[$name]);
+        }
+
+        return $this->filterObjects($queryBuilder->getQuery()->getResult());
     }
 
     /**
@@ -478,6 +566,78 @@ class Auditor
     protected function filterObjects(array $values): array
     {
         return \array_values(\array_filter($values, static fn(mixed $value): bool => true === \is_object($value)));
+    }
+
+    /**
+     * The conversion `postFlush` will do, run while the flush can still be refused: `postFlush` sits after the commit,
+     * so an identifier it cannot render there loses the audit trail of a transaction the database has already kept.
+     *
+     * @return array<string, mixed>|null null when the identifier is not generated yet, which only `postFlush` can read
+     */
+    protected function resolveStableIdentifier(object $entity): ?array
+    {
+        $classMetadata = $this->entityManager->getClassMetadata(
+            $this->annotationReadService->getEntityClass($entity),
+        );
+        $identifier = $classMetadata->getIdentifierValues($entity);
+
+        if ([] === $identifier || true === \in_array(null, $identifier, true)) {
+            return null;
+        }
+
+        return $this->getStableIdentifier($entity);
+    }
+
+    /**
+     * @param object[] $entities
+     * @return list<array<string, mixed>>|null null as soon as one identifier is not readable yet
+     */
+    protected function resolveStableIdentifiers(array $entities): ?array
+    {
+        $sorted = [];
+
+        foreach ($entities as $entity) {
+            $identifier = $this->resolveStableIdentifier($entity);
+
+            if (null === $identifier) {
+                return null;
+            }
+
+            $sorted[] = [\json_encode($identifier, \JSON_THROW_ON_ERROR), $identifier];
+        }
+
+        return $this->sortByKey($sorted);
+    }
+
+    /**
+     * An association that is part of the identifier is kept in `getOriginalEntityData()` as the referenced column's
+     * value rather than as the target object, so the identity map cannot be asked about it.
+     *
+     * @param array<int, mixed> $joinColumns
+     * @param ClassMetadata<object> $targetClassMetadata
+     * @return array<string, mixed>|null
+     */
+    protected function readRelatedIdentifier(mixed $associationData, array $joinColumns, ClassMetadata $targetClassMetadata): ?array
+    {
+        if (null === $associationData) {
+            return null;
+        }
+
+        if (true === \is_object($associationData)) {
+            $unitOfWork = $this->entityManager->getUnitOfWork();
+
+            return true === $unitOfWork->isInIdentityMap($associationData)
+                ? $unitOfWork->getEntityIdentifier($associationData)
+                : null;
+        }
+
+        if (1 !== \count($joinColumns)) {
+            return null;
+        }
+
+        return [
+            $targetClassMetadata->getFieldName($joinColumns[0]['referencedColumnName']) => $associationData,
+        ];
     }
 
     /** @return array<string, mixed> */
@@ -497,6 +657,9 @@ class Auditor
                 $identifier[$field] = $value->value;
             } elseif (true === $value instanceof DateTimeInterface) {
                 $identifier[$field] = $value->format(DateTimeInterface::ATOM);
+            } elseif (true === $value instanceof Stringable) {
+                /* the shape every uid package maps an identifier to; its string form is what the audit trail has to be comparable on */
+                $identifier[$field] = (string)$value;
             } elseif (null !== $value && false === \is_scalar($value)) {
                 throw new Exception(
                     \sprintf(
@@ -577,7 +740,7 @@ class Auditor
             if ([] === $fields) {
                 throw new Exception(
                     \sprintf(
-                        'entity `%s` has all fields ignored — review @Ignore annotations and the global ignored_fields configuration',
+                        'entity `%s` has all fields ignored — review the ignore annotations and the global ignored_fields configuration',
                         $entityDto->getClass(),
                     ),
                 );
@@ -598,11 +761,11 @@ class Auditor
 
             $storageCollectionChange = new StorageCollectionChangeDto(
                 $this->annotationReadService->getEntityClass($owner),
-                $this->getStableIdentifier($owner),
+                $collectionChange->getOwnerIdentifier() ?? $this->getStableIdentifier($owner),
                 $collectionChange->getField(),
                 $collectionChange->getTargetClass(),
-                $this->getStableIdentifiers($collectionChange->getAddedEntities()),
-                $this->getStableIdentifiers($collectionChange->getRemovedEntities()),
+                $collectionChange->getAddedIdentifiers() ?? $this->getStableIdentifiers($collectionChange->getAddedEntities()),
+                $collectionChange->getRemovedIdentifiers() ?? $this->getStableIdentifiers($collectionChange->getRemovedEntities()),
             );
 
             $sorted[] = [$this->getCollectionChangeSortKey($storageCollectionChange), $storageCollectionChange];

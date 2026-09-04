@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Test\Command\Audit;
 
+use DateTimeImmutable;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Mockery\MockInterface;
@@ -123,5 +124,33 @@ final class PurgeCommandTest extends TestCase
 
         static::assertSame(1, $commandTester->execute(['--before' => '2025-01-01', '--force' => true]));
         static::assertStringContainsString('could not lock audit file', $commandTester->getDisplay());
+    }
+
+    /**
+     * A `--before` in the future purges the whole trail, and that stays allowed on purpose: it is the only way to
+     * empty an audit file, and the dry run that runs without `--force` reports the count first.
+     */
+    public function testAFutureBeforeIsReportedByTheDryRunItDefaultsTo(): void
+    {
+        /** @var AuditPurgerInterface&MockInterface $auditPurger */
+        $auditPurger = Mockery::mock(AuditPurgerInterface::class);
+        $auditPurger->shouldReceive('purge')
+            ->once()
+            ->with(Mockery::on(function (PurgeRequest $purgeRequest): bool {
+                static::assertTrue($purgeRequest->getDryRun());
+                static::assertGreaterThan(new DateTimeImmutable(), $purgeRequest->getBefore());
+
+                return true;
+            }))
+            ->andReturn(new PurgeResult(9, 0, false));
+
+        $commandTester = new CommandTester(new PurgeCommand('audit:purge', $auditPurger));
+
+        static::assertSame(0, $commandTester->execute(['--before' => '+1 day']));
+
+        $display = $commandTester->getDisplay();
+
+        static::assertStringContainsString('9', $display);
+        static::assertStringContainsString('nothing was purged', $display);
     }
 }

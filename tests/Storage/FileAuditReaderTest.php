@@ -10,39 +10,21 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Storage;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
 use PrecisionSoft\Doctrine\Audit\Dto\Query\AuditQuery;
 use PrecisionSoft\Doctrine\Audit\Dto\Query\PurgeRequest;
+use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
+use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
+use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Storage\FileAuditReader;
+use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
 
 /** @internal */
 final class FileAuditReaderTest extends TestCase
 {
     private string $file;
-
-    protected function setUp(): void
-    {
-        $file = \tempnam(\sys_get_temp_dir(), 'audit-reader-');
-
-        if (false === $file) {
-            throw new Exception('temp file failed');
-        }
-
-        $this->file = $file;
-
-        $this->write([
-            $this->record('2024-01-01 10:00:00', 'alice', 'insert', 10),
-            $this->record('2025-01-01 10:00:00', 'bob', 'update', 20),
-            $this->record('2026-01-01 10:00:00', 'alice', 'delete', 30),
-        ]);
-    }
-
-    protected function tearDown(): void
-    {
-        @\unlink($this->file);
-        @\unlink($this->file . '.purge');
-    }
 
     public function testReadFiltersIdentityUserOperationAndPaginates(): void
     {
@@ -147,7 +129,8 @@ final class FileAuditReaderTest extends TestCase
         );
     }
 
-    public function testReadMatchesIdentityAgainstTheOldAndNewShapeOfAnUpdatedColumn(): void
+    /** Identity matches the value a transaction left behind, never the one it replaced: an audit lookup asks "which transaction produced this state". */
+    public function testReadMatchesTheNewValueOfAColumnStoredAsOldAndNew(): void
     {
         $this->write([
             \json_encode([
@@ -247,25 +230,6 @@ final class FileAuditReaderTest extends TestCase
             $reader->read(new AuditQuery(entityClass: 'App\\Order', identity: ['id' => 7]))->getTransactions(),
         );
         static::assertCount(1, $reader->read(new AuditQuery(entityClass: 'App\\Order'))->getTransactions());
-    }
-
-    private function writeCollectionRecord(): void
-    {
-        $this->write([
-            \json_encode([
-                'username' => 'dave',
-                'date' => '2025-03-01 10:00:00',
-                'entities' => [],
-                'collections' => [[
-                    'owner_class' => 'App\\Order',
-                    'owner_identifier' => ['id' => 7],
-                    'field' => 'tags',
-                    'target_class' => 'App\\Tag',
-                    'added' => [['id' => 9]],
-                    'removed' => [['id' => 4]],
-                ]],
-            ], \JSON_THROW_ON_ERROR),
-        ]);
     }
 
     public function testReadRejectsAnInvalidCursor(): void
@@ -454,6 +418,131 @@ final class FileAuditReaderTest extends TestCase
             2,
             $reader->purge(new PurgeRequest(new DateTimeImmutable('2025-06-01')))->getMatchedTransactions(),
         );
+    }
+
+    public function testAFailedPartitionLeavesNoPurgeFileBehind(): void
+    {
+        $this->write([
+            $this->record('2024-01-01 10:00:00', 'alice', 'insert', 10),
+            $this->record('2024-02-01 10:00:00', 'bob', 'insert', 20),
+            '{not json',
+        ]);
+
+        $fileAuditReader = new FileAuditReader($this->file);
+        $intact = (string)\file_get_contents($this->file);
+
+        try {
+            $fileAuditReader->purge(new PurgeRequest(new DateTimeImmutable('2025-01-01'), 1, false));
+
+            static::fail('the malformed record must abort the purge');
+        } catch (Exception $exception) {
+            static::assertStringContainsString('is not valid json', $exception->getMessage());
+        }
+
+        static::assertFileDoesNotExist($this->file . '.purge', 'a partial kept set must not be left behind');
+        static::assertSame($intact, (string)\file_get_contents($this->file), 'the audit file must be untouched');
+
+        /* the point: the operator is told the real cause, not that a previous purge left a set worth restoring */
+        try {
+            $fileAuditReader->purge(new PurgeRequest(new DateTimeImmutable('2025-01-01'), 1, false));
+
+            static::fail('the malformed record must abort the purge');
+        } catch (Exception $exception) {
+            static::assertStringNotContainsString('did not finish', $exception->getMessage());
+        }
+    }
+
+    public function testThePurgeBoundaryDoesNotDependOnTheReaderTimezone(): void
+    {
+        $timezone = \date_default_timezone_get();
+
+        try {
+            \date_default_timezone_set('UTC');
+
+            \file_put_contents($this->file, '');
+
+            $fileStorage = new FileStorage($this->file, null);
+            $fileStorage->save(new StorageDto(
+                new TransactionDto('admin'),
+                [new EntityDto(Operation::Insert, 'App\\Order', 'order', [new FieldDto('id', 'id', 'integer', 1)])],
+            ));
+
+            $before = new DateTimeImmutable('+1 second');
+
+            /* a purge cli run from another host reads the same bytes with another default timezone */
+            \date_default_timezone_set('Pacific/Honolulu');
+
+            static::assertSame(
+                1,
+                (new FileAuditReader($this->file))->purge(new PurgeRequest($before))->getMatchedTransactions(),
+                'the record was written before the boundary, whatever timezone reads it back',
+            );
+        } finally {
+            \date_default_timezone_set($timezone);
+        }
+    }
+
+    public function testReadRejectsACursorWithATrailingNewline(): void
+    {
+        $fileAuditReader = new FileAuditReader($this->file);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('invalid audit cursor');
+
+        $fileAuditReader->read(new AuditQuery(cursor: \base64_encode("1\n")));
+    }
+
+    public function testReadRejectsAnOverflowingCursor(): void
+    {
+        $fileAuditReader = new FileAuditReader($this->file);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('invalid audit cursor');
+
+        /* saturating to PHP_INT_MAX returns an empty page with no next cursor, which reads exactly like end of data */
+        $fileAuditReader->read(new AuditQuery(cursor: \base64_encode(\str_repeat('9', 30))));
+    }
+
+    protected function setUp(): void
+    {
+        $file = \tempnam(\sys_get_temp_dir(), 'audit-reader-');
+
+        if (false === $file) {
+            throw new Exception('temp file failed');
+        }
+
+        $this->file = $file;
+
+        $this->write([
+            $this->record('2024-01-01 10:00:00', 'alice', 'insert', 10),
+            $this->record('2025-01-01 10:00:00', 'bob', 'update', 20),
+            $this->record('2026-01-01 10:00:00', 'alice', 'delete', 30),
+        ]);
+    }
+
+    protected function tearDown(): void
+    {
+        @\unlink($this->file);
+        @\unlink($this->file . '.purge');
+    }
+
+    private function writeCollectionRecord(): void
+    {
+        $this->write([
+            \json_encode([
+                'username' => 'dave',
+                'date' => '2025-03-01 10:00:00',
+                'entities' => [],
+                'collections' => [[
+                    'owner_class' => 'App\\Order',
+                    'owner_identifier' => ['id' => 7],
+                    'field' => 'tags',
+                    'target_class' => 'App\\Tag',
+                    'added' => [['id' => 9]],
+                    'removed' => [['id' => 4]],
+                ]],
+            ], \JSON_THROW_ON_ERROR),
+        ]);
     }
 
     /** @param string[] $records */

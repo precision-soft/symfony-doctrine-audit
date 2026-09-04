@@ -1,0 +1,8 @@
+/vendor/
+/var/
+/.env.local
+/composer.lock
+/.phpunit.cache/
+/.phpunit.result.cache
+/phpunit.xml
+/config/reference.php

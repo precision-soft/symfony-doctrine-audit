@@ -8,14 +8,18 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Test\Storage;
 
+use DateTimeImmutable;
+use DateTimeInterface;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Dto\FieldDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Operation;
+use PrecisionSoft\Doctrine\Audit\Dto\Query\AuditQuery;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\CollectionChangeDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\EntityDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\StorageDto;
 use PrecisionSoft\Doctrine\Audit\Dto\Storage\TransactionDto;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
+use PrecisionSoft\Doctrine\Audit\Storage\FileAuditReader;
 use PrecisionSoft\Doctrine\Audit\Storage\FileStorage;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Storage\FailingFileStorage;
 
@@ -25,34 +29,6 @@ use PrecisionSoft\Doctrine\Audit\Test\Utility\Storage\FailingFileStorage;
 final class FileStorageTest extends TestCase
 {
     private string $tmpFile;
-
-    protected function setUp(): void
-    {
-        $this->tmpFile = \sys_get_temp_dir() . '/audit_test_' . \uniqid() . '.log';
-    }
-
-    protected function tearDown(): void
-    {
-        if (true === \is_dir($this->tmpFile)) {
-            \rmdir($this->tmpFile);
-
-            return;
-        }
-
-        if (true === \file_exists($this->tmpFile)) {
-            \unlink($this->tmpFile);
-        }
-    }
-
-    /* the assert is load-bearing: trim(false) is '' and every assertion below would pass on an empty string */
-    private function readStorageFile(): string
-    {
-        $contents = \file_get_contents($this->tmpFile);
-
-        static::assertNotFalse($contents, \sprintf('could not read `%s`', $this->tmpFile));
-
-        return \trim($contents);
-    }
 
     public function testSaveWritesJsonlLine(): void
     {
@@ -200,12 +176,46 @@ final class FileStorageTest extends TestCase
         static::assertSame('insert', $decoded['entities'][0]['operation']);
     }
 
-    private function createStorageDto(): StorageDto
+    public function testTheWrittenDateCarriesItsOffset(): void
     {
-        return new StorageDto(
-            new TransactionDto('admin'),
-            [new EntityDto(Operation::Insert, 'App\\Entity\\User', 'user', [new FieldDto('id', 'id', 'integer', 1)])],
+        $storage = new FileStorage($this->tmpFile, null);
+        $storage->save($this->createStorageDto());
+
+        $decoded = \json_decode($this->readStorageFile(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertIsArray($decoded);
+        static::assertIsString($decoded['date']);
+
+        /* a naive stamp is re-read in the reader process's timezone, which moves a purge boundary by up to a day */
+        static::assertSame(
+            $decoded['date'],
+            (new DateTimeImmutable($decoded['date']))->format(DateTimeInterface::ATOM),
         );
+    }
+
+    public function testAShortWriteIsRolledBackUnderTheLock(): void
+    {
+        $storage = new FileStorage($this->tmpFile, null);
+        $storage->save($this->createStorageDto());
+
+        $intact = $this->readStorageFile();
+
+        $failing = new FailingFileStorage($this->tmpFile, null, failAfterBytes: 5);
+
+        try {
+            $failing->save($this->createStorageDto());
+
+            static::fail('a write that fails after emitting bytes must surface');
+        } catch (Exception $exception) {
+            static::assertStringContainsString('could not write audit file', $exception->getMessage());
+        }
+
+        static::assertSame($intact, $this->readStorageFile(), 'the half-written record must not stay in the file');
+
+        /* the point of the rollback: the jsonl stays readable, so the reader and the purge that could repair it still work */
+        $page = (new FileAuditReader($this->tmpFile))->read(new AuditQuery());
+
+        static::assertCount(1, $page->getTransactions());
     }
 
     public function testSaveAppendsMultipleLines(): void
@@ -222,5 +232,41 @@ final class FileStorageTest extends TestCase
 
         $lines = \array_filter(\explode(\PHP_EOL, $this->readStorageFile()));
         static::assertCount(2, $lines);
+    }
+
+    protected function setUp(): void
+    {
+        $this->tmpFile = \sys_get_temp_dir() . '/audit_test_' . \uniqid() . '.log';
+    }
+
+    protected function tearDown(): void
+    {
+        if (true === \is_dir($this->tmpFile)) {
+            \rmdir($this->tmpFile);
+
+            return;
+        }
+
+        if (true === \file_exists($this->tmpFile)) {
+            \unlink($this->tmpFile);
+        }
+    }
+
+    /* the assert is load-bearing: trim(false) is '' and every assertion below would pass on an empty string */
+    private function readStorageFile(): string
+    {
+        $contents = \file_get_contents($this->tmpFile);
+
+        static::assertNotFalse($contents, \sprintf('could not read `%s`', $this->tmpFile));
+
+        return \trim($contents);
+    }
+
+    private function createStorageDto(): StorageDto
+    {
+        return new StorageDto(
+            new TransactionDto('admin'),
+            [new EntityDto(Operation::Insert, 'App\\Entity\\User', 'user', [new FieldDto('id', 'id', 'integer', 1)])],
+        );
     }
 }

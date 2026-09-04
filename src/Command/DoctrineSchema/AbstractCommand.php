@@ -22,15 +22,6 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
 {
     protected const FORCE = 'force';
 
-    public function __construct(
-        string $name,
-        protected readonly EntityManagerInterface $sourceEntityManager,
-        protected readonly EntityManagerInterface $destinationEntityManager,
-        protected readonly AnnotationReadServiceInterface $annotationReadService,
-    ) {
-        parent::__construct($name);
-    }
-
     /**
      * @param list<ClassMetadata<object>> $metadatas
      * @return string[]
@@ -43,6 +34,15 @@ abstract class AbstractCommand extends ConsoleAbstractCommand
     abstract protected function getActionVerb(): string;
 
     abstract protected function getCompletedVerb(): string;
+
+    public function __construct(
+        string $name,
+        protected readonly EntityManagerInterface $sourceEntityManager,
+        protected readonly EntityManagerInterface $destinationEntityManager,
+        protected readonly AnnotationReadServiceInterface $annotationReadService,
+    ) {
+        parent::__construct($name);
+    }
 
     protected function configure(): void
     {

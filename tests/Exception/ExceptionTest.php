@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Audit\Test\Exception;
 
+use Exception as BaseException;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Contract\ExceptionInterface;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
@@ -22,7 +23,7 @@ final class ExceptionTest extends TestCase
     {
         $exception = new Exception('test');
 
-        static::assertInstanceOf(\Exception::class, $exception);
+        static::assertInstanceOf(BaseException::class, $exception);
     }
 
     public function testMessageAndCode(): void

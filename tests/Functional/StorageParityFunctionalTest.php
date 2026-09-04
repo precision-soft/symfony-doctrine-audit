@@ -32,20 +32,6 @@ final class StorageParityFunctionalTest extends TestCase
     private ?AuditIntegrationEnvironment $environment = null;
     private ?string $auditFile = null;
 
-    protected function tearDown(): void
-    {
-        $this->environment?->close();
-        $this->environment = null;
-
-        if (null !== $this->auditFile && true === \file_exists($this->auditFile)) {
-            \unlink($this->auditFile);
-        }
-
-        $this->auditFile = null;
-
-        parent::tearDown();
-    }
-
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testDoctrineAndFileStorageDescribeTheSameOperations(string $environmentVariable): void
     {
@@ -133,14 +119,20 @@ final class StorageParityFunctionalTest extends TestCase
         /* the reader has to match the shape the storage really writes, not the one the unit fixtures assume */
         $reader = new FileAuditReader((string)$this->auditFile);
 
+        $targetTransactions = $reader->read(new AuditQuery(
+            entityClass: RelatedSubject::class,
+            identity: ['id' => $related->getId()],
+        ))->getTransactions();
+
         static::assertCount(
-            1,
-            $reader->read(new AuditQuery(
-                entityClass: RelatedSubject::class,
-                identity: ['id' => $related->getId()],
-            ))->getTransactions(),
-            'the added target of the collection is reachable through its own class and id',
+            2,
+            $targetTransactions,
+            'the target of the collection is reachable through its own class and id, when it is linked and when the owner is deleted',
         );
+        static::assertSame([['id' => $related->getId()]], $targetTransactions[0]['collections'][0]['added']);
+        static::assertSame([], $targetTransactions[0]['collections'][0]['removed']);
+        static::assertSame([], $targetTransactions[1]['collections'][0]['added']);
+        static::assertSame([['id' => $related->getId()]], $targetTransactions[1]['collections'][0]['removed']);
         static::assertCount(
             4,
             $reader->read(new AuditQuery(entityClass: AuditedSubject::class))->getTransactions(),
@@ -153,6 +145,20 @@ final class StorageParityFunctionalTest extends TestCase
                 operation: Operation::Delete,
             ))->getTransactions(),
         );
+    }
+
+    protected function tearDown(): void
+    {
+        $this->environment?->close();
+        $this->environment = null;
+
+        if (null !== $this->auditFile && true === \file_exists($this->auditFile)) {
+            \unlink($this->auditFile);
+        }
+
+        $this->auditFile = null;
+
+        parent::tearDown();
     }
 
     /** @return array<int, array<string, mixed>> */

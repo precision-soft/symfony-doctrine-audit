@@ -27,21 +27,6 @@ final class SchemaFunctionalTest extends TestCase
     private ?Connection $sourceConnection = null;
     private ?Connection $auditConnection = null;
 
-    protected function tearDown(): void
-    {
-        foreach ([$this->auditConnection, $this->sourceConnection] as $connection) {
-            if (null !== $connection) {
-                IntegrationDatabase::dropAllTables($connection);
-                $connection->close();
-            }
-        }
-
-        $this->auditConnection = null;
-        $this->sourceConnection = null;
-
-        parent::tearDown();
-    }
-
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testAuditSchemaIsCreatedOnlyForAuditedEntities(string $environmentVariable): void
     {
@@ -120,8 +105,8 @@ final class SchemaFunctionalTest extends TestCase
 
         /* asked of the server and not of getOption('onDelete'), which introspects as null because RESTRICT is the engine default and is stored as no explicit rule */
         $deleteRule = $auditEntityManager->getConnection()->fetchOne(
-            'SELECT DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS
-                WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?',
+            'SELECT delete_rule FROM information_schema.referential_constraints
+                WHERE constraint_schema = DATABASE() AND table_name = ? AND constraint_name = ?',
             ['audited_subject', $foreignKey->getName()],
         );
 
@@ -164,6 +149,21 @@ final class SchemaFunctionalTest extends TestCase
             $updateSql,
             \sprintf('schema:update is not idempotent, it still wants to run: %s', \implode('; ', $updateSql)),
         );
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ([$this->auditConnection, $this->sourceConnection] as $connection) {
+            if (null !== $connection) {
+                IntegrationDatabase::dropAllTables($connection);
+                $connection->close();
+            }
+        }
+
+        $this->auditConnection = null;
+        $this->sourceConnection = null;
+
+        parent::tearDown();
     }
 
     /** @return array{EntityManagerInterface, EntityManagerInterface, AuditSchemaBuilder} */

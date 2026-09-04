@@ -34,16 +34,11 @@ use stdClass;
  */
 final class AnnotationReadServiceTest extends AbstractTestCase
 {
+    private AnnotationReadService $annotationReadService;
+
     public static function getMockDto(): MockDto
     {
         return new MockDto(stdClass::class);
-    }
-
-    private AnnotationReadService $annotationReadService;
-
-    protected function setUp(): void
-    {
-        $this->annotationReadService = new AnnotationReadService();
     }
 
     public function testGetEntityClassReturnsClassName(): void
@@ -165,6 +160,11 @@ final class AnnotationReadServiceTest extends AbstractTestCase
 
         static::assertNotNull($entityDto);
         static::assertSame(['password'], $entityDto->getIgnoredFields());
+    }
+
+    protected function setUp(): void
+    {
+        $this->annotationReadService = new AnnotationReadService();
     }
 
     /** @param class-string $class */
