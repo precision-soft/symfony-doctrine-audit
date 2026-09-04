@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.1.0] - 2026-09-04 - Stringable collection identifiers, audited collection removals and jsonl io repairs
+
 ### Added
 
 - Collection identifiers may be any `Stringable` value object -- every `Uuid`, `Ulid` or uid mapping -- and are recorded as their string form. An entity whose primary key contains an association is still refused, because no string form of it would be stable, but the refusal is now raised in `onFlush`, before the transaction opens, whenever the identifier is already readable there. Previously any non-scalar identifier threw from `postFlush`, after the commit, so the database kept a change whose audit row was lost.
@@ -449,7 +451,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Initial public release of `precision-soft/symfony-doctrine-audit`
 
-[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v4.1.0...HEAD
+
+[v4.1.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v4.0.0...v4.1.0
 
 [v4.0.0]: https://github.com/precision-soft/symfony-doctrine-audit/compare/v3.5.0...v4.0.0
 
