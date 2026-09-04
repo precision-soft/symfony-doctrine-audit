@@ -27,20 +27,6 @@ final class AuditFailureFunctionalTest extends TestCase
     private ?AuditIntegrationEnvironment $environment = null;
     private ?string $auditFile = null;
 
-    protected function tearDown(): void
-    {
-        $this->environment?->close();
-        $this->environment = null;
-
-        if (null !== $this->auditFile && true === \file_exists($this->auditFile)) {
-            \unlink($this->auditFile);
-        }
-
-        $this->auditFile = null;
-
-        parent::tearDown();
-    }
-
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testAnUnwritableAuditSinkStillLeavesTheEntityCommitted(string $environmentVariable): void
     {
@@ -103,6 +89,20 @@ final class AuditFailureFunctionalTest extends TestCase
         $contents = \file_get_contents($this->auditFile);
         static::assertNotFalse($contents);
         static::assertStringContainsString('survivor', $contents);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->environment?->close();
+        $this->environment = null;
+
+        if (null !== $this->auditFile && true === \file_exists($this->auditFile)) {
+            \unlink($this->auditFile);
+        }
+
+        $this->auditFile = null;
+
+        parent::tearDown();
     }
 
     /** @param StorageInterface[] $extraStorages */

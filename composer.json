@@ -17,7 +17,7 @@
     ],
     "require": {
         "php": ">=8.2",
-        "doctrine/dbal": "4.*",
+        "doctrine/dbal": "^4.2",
         "doctrine/orm": "3.*",
         "doctrine/persistence": "3.*",
         "precision-soft/doctrine-type": "^3.0",
@@ -43,6 +43,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "PrecisionSoft\\Dev\\PhpStan\\": ".dev/phpstan/",
             "PrecisionSoft\\Doctrine\\Audit\\Test\\": "tests/"
         },
         "classmap": [

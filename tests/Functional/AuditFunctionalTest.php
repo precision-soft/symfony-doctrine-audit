@@ -11,6 +11,7 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Functional;
 use PHPUnit\Framework\Attributes\DataProviderExternal;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\AuditIntegrationEnvironment;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\AuditedSubject;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\CarVehicle;
@@ -18,7 +19,11 @@ use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\CircleShape;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\InheritingSubject;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\RelatedSubject;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\SquareShape;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\SubjectNote;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\TaggedSubject;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\UnauditedSubject;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\ValueObject\SubjectReference;
+use PrecisionSoft\Doctrine\Audit\Test\Utility\Entity\VanVehicle;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\IntegrationDatabase;
 use PrecisionSoft\Doctrine\Audit\Test\Utility\SkipIntegrationException;
 
@@ -27,14 +32,6 @@ use PrecisionSoft\Doctrine\Audit\Test\Utility\SkipIntegrationException;
 final class AuditFunctionalTest extends TestCase
 {
     private ?AuditIntegrationEnvironment $environment = null;
-
-    protected function tearDown(): void
-    {
-        $this->environment?->close();
-        $this->environment = null;
-
-        parent::tearDown();
-    }
 
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testInsertWritesOneAuditRowAndOneTransaction(string $environmentVariable): void
@@ -311,6 +308,185 @@ final class AuditFunctionalTest extends TestCase
         $transactions = $environment->readTransactions();
         static::assertCount(1, $transactions);
         static::assertSame('{"request_id":"abc-123"}', $transactions[0]['extras']);
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testDeletingAnOwnerAuditsTheRemovalOfItsCollection(string $environmentVariable): void
+    {
+        $environment = $this->createEnvironment($environmentVariable);
+
+        $firstRelated = (new RelatedSubject())->setLabel('first');
+        $secondRelated = (new RelatedSubject())->setLabel('second');
+        $environment->sourceEntityManager->persist($firstRelated);
+        $environment->sourceEntityManager->persist($secondRelated);
+
+        $subject = (new AuditedSubject())->setName('doomed')->setSecret('s')->setModified('m');
+        $subject->getRelatedSubjects()->add($firstRelated);
+        $subject->getRelatedSubjects()->add($secondRelated);
+        $environment->sourceEntityManager->persist($subject);
+        $environment->sourceEntityManager->flush();
+
+        $subjectId = $subject->getId();
+        $firstRelatedId = $firstRelated->getId();
+        $secondRelatedId = $secondRelated->getId();
+
+        /* the collection is never touched after the reload, so it reaches the flush uninitialised - the shape a real delete has */
+        $environment->sourceEntityManager->clear();
+
+        $reloaded = $environment->sourceEntityManager->find(AuditedSubject::class, $subjectId);
+        static::assertNotNull($reloaded);
+
+        $environment->sourceEntityManager->remove($reloaded);
+        $environment->sourceEntityManager->flush();
+
+        $transactions = $environment->readTransactions();
+        $deletion = \end($transactions);
+
+        static::assertIsArray($deletion);
+        static::assertNotNull($deletion['collection_changes'], 'the join rows the delete removed must be audited');
+
+        $changes = \json_decode((string)$deletion['collection_changes'], true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertCount(1, $changes);
+        static::assertSame(AuditedSubject::class, $changes[0]['owner_class']);
+        static::assertSame('relatedSubjects', $changes[0]['field']);
+        static::assertSame([], $changes[0]['added']);
+        static::assertSame(
+            [['id' => $firstRelatedId], ['id' => $secondRelatedId]],
+            $changes[0]['removed'],
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testClearingACollectionAuditsEveryRowItRemoves(string $environmentVariable): void
+    {
+        $environment = $this->createEnvironment($environmentVariable);
+
+        $firstRelated = (new RelatedSubject())->setLabel('first');
+        $secondRelated = (new RelatedSubject())->setLabel('second');
+        $environment->sourceEntityManager->persist($firstRelated);
+        $environment->sourceEntityManager->persist($secondRelated);
+
+        $subject = (new AuditedSubject())->setName('cleared')->setSecret('s')->setModified('m');
+        $subject->getRelatedSubjects()->add($firstRelated);
+        $subject->getRelatedSubjects()->add($secondRelated);
+        $environment->sourceEntityManager->persist($subject);
+        $environment->sourceEntityManager->flush();
+
+        /* `clear()` empties the collection and only then takes its snapshot, so the set it is about to remove lives in the database alone */
+        $subject->getRelatedSubjects()->clear();
+        $environment->sourceEntityManager->flush();
+
+        $transactions = $environment->readTransactions();
+        $clearing = \end($transactions);
+
+        static::assertIsArray($clearing);
+        static::assertNotNull($clearing['collection_changes']);
+
+        $changes = \json_decode((string)$clearing['collection_changes'], true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertCount(1, $changes);
+        static::assertSame([], $changes[0]['added']);
+        static::assertSame(
+            [['id' => $firstRelated->getId()], ['id' => $secondRelated->getId()]],
+            $changes[0]['removed'],
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testAJoinedChildThatOptsOutWritesNeitherTable(string $environmentVariable): void
+    {
+        $environment = $this->createEnvironment($environmentVariable);
+
+        $van = (new VanVehicle())->setPayload(1200);
+        $van->setName('panel');
+
+        $environment->sourceEntityManager->persist($van);
+        $environment->sourceEntityManager->flush();
+
+        static::assertSame([], $environment->readTransactions());
+        static::assertSame([], $environment->readAuditRows('vehicle'), 'the opted-out child must not audit its root table either');
+
+        /* the audit schema follows the same rule: an opted-out class gets no audit table */
+        static::assertNotContains('van_vehicle', IntegrationDatabase::listTables($environment->auditEntityManager->getConnection()));
+
+        /* and the sibling that did not opt out is still audited through both tables */
+        $car = (new CarVehicle())->setDoors(3);
+        $car->setName('hatch');
+
+        $environment->sourceEntityManager->persist($car);
+        $environment->sourceEntityManager->flush();
+
+        static::assertCount(1, $environment->readAuditRows('car_vehicle'));
+        static::assertCount(1, $environment->readAuditRows('vehicle'));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testAStringableIdentifierIsRecordedAsAString(string $environmentVariable): void
+    {
+        $environment = $this->createEnvironment($environmentVariable);
+
+        $related = (new RelatedSubject())->setLabel('tag');
+        $environment->sourceEntityManager->persist($related);
+
+        $subject = (new TaggedSubject(new SubjectReference('01JC9Z0000000000000000')))->setName('uid-keyed');
+        $environment->sourceEntityManager->persist($subject);
+        $environment->sourceEntityManager->flush();
+
+        $subject->getRelatedSubjects()->add($related);
+        $environment->sourceEntityManager->flush();
+
+        $transactions = $environment->readTransactions();
+        $addition = \end($transactions);
+
+        static::assertIsArray($addition);
+        static::assertNotNull($addition['collection_changes']);
+
+        $changes = \json_decode((string)$addition['collection_changes'], true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertSame(TaggedSubject::class, $changes[0]['owner_class']);
+        static::assertSame(['reference' => '01JC9Z0000000000000000'], $changes[0]['owner_identifier']);
+        static::assertSame([['id' => $related->getId()]], $changes[0]['added']);
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testAnUnrenderableIdentifierIsRefusedBeforeTheFlushCommits(string $environmentVariable): void
+    {
+        $environment = $this->createEnvironment($environmentVariable);
+
+        $related = (new RelatedSubject())->setLabel('tag');
+        $environment->sourceEntityManager->persist($related);
+
+        $environment->sourceEntityManager->flush();
+
+        $subjectNote = (new SubjectNote($related))->setNote('unrenderable');
+        $environment->sourceEntityManager->persist($subjectNote);
+        $environment->sourceEntityManager->flush();
+
+        $subjectNote->getRelatedSubjects()->add($related);
+
+        try {
+            $environment->sourceEntityManager->flush();
+
+            static::fail('an identifier the audit trail cannot render must be refused');
+        } catch (Exception $exception) {
+            static::assertStringContainsString('is not scalar', $exception->getMessage());
+        }
+
+        /* onFlush runs before the orm opens its transaction, so refusing there keeps the join row out of the database instead of losing its audit row after the commit */
+        static::assertSame(
+            0,
+            (int)$environment->sourceEntityManager->getConnection()
+                ->fetchOne('SELECT COUNT(*) FROM subject_note_related'),
+        );
+    }
+
+    protected function tearDown(): void
+    {
+        $this->environment?->close();
+        $this->environment = null;
+
+        parent::tearDown();
     }
 
     /** @param array<string, mixed> $extras */

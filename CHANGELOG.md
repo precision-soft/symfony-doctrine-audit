@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Collection identifiers may be any `Stringable` value object -- every `Uuid`, `Ulid` or uid mapping -- and are recorded as their string form. An entity whose primary key contains an association is still refused, because no string form of it would be stable, but the refusal is now raised in `onFlush`, before the transaction opens, whenever the identifier is already readable there. Previously any non-scalar identifier threw from `postFlush`, after the commit, so the database kept a change whose audit row was lost.
+- `--identity` accepts a quoted value, `--identity='code="007"'`, which keeps a string that looks like a number or a keyword. Without the quotes the console's string is still cast, so `code=007` is the integer `7` and matches nothing -- the escape hatch a code, a reference or a zero-padded number needs.
+- A runnable example application under `.example/`: the product nomenclator audited into a second database and a JSONL file through a micro-kernel, with scenarios for every capability of the bundle on MySQL and MariaDB, gated by `.dev/validate/all.sh --example` and its own CI job.
+
+### Fixed
+
+- Removing an audited owner, or clearing one of its owning collections, now audits the join rows it takes with it. Doctrine schedules neither case in a way that preserves the set: `Collection::clear()` takes its snapshot *after* emptying itself and removing the owner deletes the join rows straight from the persister without scheduling the collection at all, so both produced an empty `removed` list and the history of the collection was lost. The rows are now read from the database during `onFlush`, while they are still there.
+- An association that is part of the identifier no longer crashes the auditor. `getOriginalEntityData()` keeps such a value as the referenced column's value rather than as the target object, and it was handed straight to `UnitOfWork::isInIdentityMap()`, which raised a `TypeError` on every flush of an entity keyed by a foreign key.
+- A failed purge no longer leaves a *partial* kept set behind. A throw in the second pass -- an unparsable record beyond the batch, for instance -- left `<file>.purge` holding a fraction of the records and the next run then told the operator to restore it over an intact audit file. The complete kept set is still left for recovery, which is the designed behaviour; an incomplete one is removed and the real cause reported.
+- `FileStorage` truncates a record whose write failed after emitting bytes, under the same exclusive lock. A partial JSONL line used to make every later read and purge of that file fail as invalid json, including the purge that could have repaired it.
+- An audit cursor that does not decode back to exactly the number it carries is refused instead of being treated as end-of-data. A trailing newline passed the pattern, and a value beyond `PHP_INT_MAX` saturated into an empty page with no next cursor -- indistinguishable from having reached the end.
+
+### Changed
+
+- JSONL records write `date` in ATOM with its offset instead of a naive `Y-m-d H:i:s`. The stamp was re-parsed in the reader's own timezone, so a purge run elsewhere honoured a `--before` boundary up to fourteen hours off what it said. Records written by earlier releases are still read, in the reader's timezone as before.
+- `doctrine/dbal` now requires `^4.2`. `Types::ENUM` and `Column::getValues()`, which the audit schema uses to keep an enum column stable, do not exist in 4.0 or 4.1, so the declared floor could not install.
+
 ## [v4.0.0] - 2026-09-01 - Many-to-many collection auditing and jsonl read and retention contracts
 
 ### Upgrading from v3

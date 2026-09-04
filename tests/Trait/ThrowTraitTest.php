@@ -28,11 +28,6 @@ final class ThrowTraitTest extends AbstractTestCase
         );
     }
 
-    private function createThrowableClass(?LoggerInterface $logger): ThrowTraitUser
-    {
-        return new ThrowTraitUser($logger);
-    }
-
     public function testThrowWrapsExceptionInAuditException(): void
     {
         $throwTraitUser = $this->createThrowableClass(null);
@@ -81,9 +76,9 @@ final class ThrowTraitTest extends AbstractTestCase
 
         try {
             $throwTraitUser->doThrow($original);
-        } catch (Exception $e) {
-            static::assertSame('no logging', $e->getMessage());
-            static::assertSame($original, $e->getPrevious());
+        } catch (Exception $exception) {
+            static::assertSame('no logging', $exception->getMessage());
+            static::assertSame($original, $exception->getPrevious());
 
             return;
         }
@@ -124,8 +119,8 @@ final class ThrowTraitTest extends AbstractTestCase
 
         try {
             $throwTraitUser->doThrow($original);
-        } catch (Exception $e) {
-            static::assertSame($original, $e->getPrevious());
+        } catch (Exception $exception) {
+            static::assertSame($original, $exception->getPrevious());
 
             return;
         }
@@ -159,5 +154,10 @@ final class ThrowTraitTest extends AbstractTestCase
         } catch (Exception $exception) {
             static::assertSame([], $exception->getContext());
         }
+    }
+
+    private function createThrowableClass(?LoggerInterface $logger): ThrowTraitUser
+    {
+        return new ThrowTraitUser($logger);
     }
 }

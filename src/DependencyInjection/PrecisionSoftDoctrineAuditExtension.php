@@ -126,16 +126,16 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
         $containerBuilder->setDefinition($storageServiceId, $definition);
     }
 
-    /** @param array<string, mixed> $config */
+    /** @param array<string, mixed> $configuration */
     protected function defineStorageDoctrineConfig(
         ContainerBuilder $containerBuilder,
         string $storageName,
-        array $config,
+        array $configuration,
     ): void {
         $definition = new Definition(
             DoctrineConfig::class,
             [
-                $config,
+                $configuration,
             ],
         );
 
@@ -413,13 +413,13 @@ class PrecisionSoftDoctrineAuditExtension extends Extension
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param array<string, mixed> $configuration
      * @return array{string, string}
      */
-    protected function getEntityManagerAndConnection(array $config): array
+    protected function getEntityManagerAndConnection(array $configuration): array
     {
-        $entityManager = $config['entity_manager'] ?? '';
-        $connection = $config['connection'] ?? $entityManager;
+        $entityManager = $configuration['entity_manager'] ?? '';
+        $connection = $configuration['connection'] ?? $entityManager;
 
         return [$entityManager, $connection];
     }

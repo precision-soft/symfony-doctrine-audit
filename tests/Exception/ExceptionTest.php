@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Audit\Test\Exception;
 
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Audit\Contract\ExceptionInterface;
+use Exception as BaseException;
 use PrecisionSoft\Doctrine\Audit\Exception\Exception;
 use PrecisionSoft\Doctrine\Audit\Exception\StorageFailureException;
 
@@ -22,7 +23,7 @@ final class ExceptionTest extends TestCase
     {
         $exception = new Exception('test');
 
-        static::assertInstanceOf(\Exception::class, $exception);
+        static::assertInstanceOf(BaseException::class, $exception);
     }
 
     public function testMessageAndCode(): void

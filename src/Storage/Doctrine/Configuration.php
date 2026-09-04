@@ -32,12 +32,12 @@ class Configuration
     protected readonly string $operationColumnName;
     protected readonly string $collectionChangesColumnName;
 
-    /** @param array<string, string> $config */
-    public function __construct(array $config)
+    /** @param array<string, string> $configuration */
+    public function __construct(array $configuration)
     {
-        $this->transactionTableName = $config['transaction_table_name'] ?? static::DEFAULT_TRANSACTION_TABLE;
-        $this->transactionIdColumnName = $config['transaction_id_column_name'] ?? static::DEFAULT_TRANSACTION_ID_COLUMN;
-        $transactionIdColumnType = $config['transaction_id_column_type'] ?? static::DEFAULT_TRANSACTION_ID_TYPE;
+        $this->transactionTableName = $configuration['transaction_table_name'] ?? static::DEFAULT_TRANSACTION_TABLE;
+        $this->transactionIdColumnName = $configuration['transaction_id_column_name'] ?? static::DEFAULT_TRANSACTION_ID_COLUMN;
+        $transactionIdColumnType = $configuration['transaction_id_column_type'] ?? static::DEFAULT_TRANSACTION_ID_TYPE;
 
         if (false === \in_array($transactionIdColumnType, static::SUPPORTED_TRANSACTION_ID_TYPES, true)) {
             throw new Exception(
@@ -50,8 +50,8 @@ class Configuration
         }
 
         $this->transactionIdColumnType = $transactionIdColumnType;
-        $this->operationColumnName = $config['operation_column_name'] ?? static::DEFAULT_OPERATION_COLUMN;
-        $this->collectionChangesColumnName = $config['collection_changes_column_name'] ?? static::DEFAULT_COLLECTION_CHANGES_COLUMN;
+        $this->operationColumnName = $configuration['operation_column_name'] ?? static::DEFAULT_OPERATION_COLUMN;
+        $this->collectionChangesColumnName = $configuration['collection_changes_column_name'] ?? static::DEFAULT_COLLECTION_CHANGES_COLUMN;
     }
 
     public function getTransactionTableName(): string

@@ -36,29 +36,13 @@ use stdClass;
  */
 final class DoctrineSchemaListenerTest extends AbstractTestCase
 {
-    public static function getMockDto(): MockDto
-    {
-        return new MockDto(stdClass::class);
-    }
-
     private AnnotationReadServiceInterface&MockInterface $annotationReadService;
     private AuditorConfiguration $auditorConfiguration;
     private StorageConfiguration $storageConfiguration;
 
-    protected function setUp(): void
+    public static function getMockDto(): MockDto
     {
-        $this->annotationReadService = Mockery::mock(AnnotationReadServiceInterface::class);
-        $this->auditorConfiguration = new AuditorConfiguration([]);
-        $this->storageConfiguration = new StorageConfiguration([]);
-    }
-
-    private function createListener(): DoctrineSchemaListener
-    {
-        return new DoctrineSchemaListener(
-            $this->annotationReadService,
-            $this->auditorConfiguration,
-            $this->storageConfiguration,
-        );
+        return new MockDto(stdClass::class);
     }
 
     public function testPostGenerateSchemaTableDropsTableWhenNotAuditable(): void
@@ -497,5 +481,21 @@ final class DoctrineSchemaListenerTest extends AbstractTestCase
 
         static::assertStringContainsString("ENUM('delete', 'insert', 'update') NOT NULL", $createTableSql);
         static::assertStringContainsString('audit_transaction_id', $createTableSql);
+    }
+
+    protected function setUp(): void
+    {
+        $this->annotationReadService = Mockery::mock(AnnotationReadServiceInterface::class);
+        $this->auditorConfiguration = new AuditorConfiguration([]);
+        $this->storageConfiguration = new StorageConfiguration([]);
+    }
+
+    private function createListener(): DoctrineSchemaListener
+    {
+        return new DoctrineSchemaListener(
+            $this->annotationReadService,
+            $this->auditorConfiguration,
+            $this->storageConfiguration,
+        );
     }
 }
