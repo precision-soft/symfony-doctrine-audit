@@ -29,7 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [v4.0.0] - 2026-09-01 - Many-to-many collection auditing and jsonl read and retention contracts
 
-### Upgrading from v3
+### Upgrade Notes
 
 - **Run the audit schema update command.** The transaction table gains a nullable `collection_changes` JSON column, and an audited flush that changes an owning `ManyToMany` collection writes to it.
 - **`Storage::getTransactionId()` now takes the whole `StorageDto`** instead of just its `TransactionDto`, because the collection payload belongs on the transaction row. Subclasses that override it must widen the parameter.
